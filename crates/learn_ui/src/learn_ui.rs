@@ -2,6 +2,8 @@
 
 mod learn_panel;
 mod track_picker;
+#[cfg(test)]
+mod tests;
 
 pub use learn_panel::LearnPanel;
 pub use track_picker::TrackPicker;

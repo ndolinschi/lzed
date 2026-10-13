@@ -20,7 +20,7 @@
 | M6-02 | E2E manual test (PLAN.md) + screenshots | done |
 | M7-01 | Hint (XP cost), Reset (confirm), Next (after pass) | done |
 | M7-02 | Auto-trust bundled tracks (D9) | todo (proposed) |
-| M7-03 | gpui tests for learn_ui (picker/panel) | todo |
+| M7-03 | gpui tests for learn_ui (picker/panel) | done |
 | M7-04 | Update script/bundle-* for `learnzed` bin, desktop file, icons | todo |
 | M7-05 | Award/derive skills for already-completed tracks | done |
 
@@ -30,3 +30,4 @@
 | AI-1 | Generate `.rules` (agent rules file) into each track workspace on materialize: tutor persona, no solution leaks, how to read .learn/progress.json, exercise layout, how to interpret check results | M8 | | todo | task/AI-1 | Zed auto-loads .rules into agent context |
 | AI-2 | Agent tools for learning (context server / MCP `learnzed` or built-in tools): get_current_exercise, run_check (returns runner JSON), get_hint(level), get_progress/skills | M8 | | todo | task/AI-2 | no tool returns solution.py |
 | AI-3 | Slash commands / prompt library entries in agent chat: /exercise, /check, /hint, /explain-error | M8 | | todo | task/AI-3 | |
+| AI-4 | "Generate track" (approved by user): button in track picker -> AI interview in Zed agent chat (asks goals, current level, language/stack, time budget), then generates a valid track (track.toml, chapters, exercises with starter/solution/check.py, layout) into ~/LearnZed/.tracks/<id>, validates with learn parser + runs solution through checker, registers it in picker. Same flow for "Generate skill" (short track awarding a skill). Uses Zed language_model; if no provider -> connect prompt. | M8 | | todo | task/AI-4 | after AI-1..AI-3 |

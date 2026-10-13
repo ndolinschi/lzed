@@ -22,7 +22,7 @@ use crate::ToggleFocus;
 
 const LEARN_PANEL_KEY: &str = "LearnPanel";
 
-struct SubmitState {
+pub(crate) struct SubmitState {
     outcome: CheckOutcome,
     xp_awarded: u32,
     skill_earned: Option<String>,
@@ -30,19 +30,19 @@ struct SubmitState {
 
 /// Left-dock panel with the chapter/exercise tree and the exercise view (AC3, AC4).
 pub struct LearnPanel {
-    workspace: WeakEntity<Workspace>,
-    project: Entity<Project>,
-    focus_handle: FocusHandle,
-    position: DockPosition,
-    track: Option<TrackWorkspace>,
-    progress: Progress,
-    selected: Option<String>,
-    markdown: Option<Entity<Markdown>>,
-    submit: Option<SubmitState>,
-    checking: bool,
-    auto_opened: bool,
-    show_ai_connect: bool,
-    _subscriptions: Vec<Subscription>,
+    pub(crate) workspace: WeakEntity<Workspace>,
+    pub(crate) project: Option<Entity<Project>>,
+    pub(crate) focus_handle: FocusHandle,
+    pub(crate) position: DockPosition,
+    pub(crate) track: Option<TrackWorkspace>,
+    pub(crate) progress: Progress,
+    pub(crate) selected: Option<String>,
+    pub(crate) markdown: Option<Entity<Markdown>>,
+    pub(crate) submit: Option<SubmitState>,
+    pub(crate) checking: bool,
+    pub(crate) auto_opened: bool,
+    pub(crate) show_ai_connect: bool,
+    pub(crate) _subscriptions: Vec<Subscription>,
 }
 
 impl LearnPanel {
@@ -54,24 +54,26 @@ impl LearnPanel {
             workspace.update_in(cx, |workspace, window, cx| {
                 let weak = cx.entity().downgrade();
                 let project = workspace.project().clone();
-                cx.new(|cx| LearnPanel::new(weak, project, window, cx))
+                cx.new(|cx| LearnPanel::new(weak, Some(project), window, cx))
             })
         })
     }
 
-    fn new(
+    pub(crate) fn new(
         workspace: WeakEntity<Workspace>,
-        project: Entity<Project>,
+        project: Option<Entity<Project>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let subscription = cx.subscribe_in(&project, window, |this, _, event, window, cx| {
-            if matches!(
-                event,
-                project::Event::WorktreeAdded(_) | project::Event::WorktreeRemoved(_)
-            ) {
-                this.detect_track(window, cx);
-            }
+        let subscription = project.as_ref().map(|project| {
+            cx.subscribe_in(project, window, |this, _, event, window, cx| {
+                if matches!(
+                    event,
+                    project::Event::WorktreeAdded(_) | project::Event::WorktreeRemoved(_)
+                ) {
+                    this.detect_track(window, cx);
+                }
+            })
         });
         let mut this = Self {
             workspace,
@@ -86,7 +88,7 @@ impl LearnPanel {
             checking: false,
             auto_opened: false,
             show_ai_connect: false,
-            _subscriptions: vec![subscription],
+            _subscriptions: subscription.into_iter().collect(),
         };
         this.detect_track(window, cx);
         this
@@ -98,7 +100,8 @@ impl LearnPanel {
     }
 
     fn track_root(&self, cx: &App) -> Option<PathBuf> {
-        self.project
+        let project = self.project.as_ref()?;
+        project
             .read(cx)
             .visible_worktrees(cx)
             .map(|wt| wt.read(cx).abs_path().to_path_buf())
@@ -165,11 +168,11 @@ impl LearnPanel {
         for (ix, hint) in exercise.hints.iter().take(hints_used).enumerate() {
             source.push_str(&format!("\n#### Hint {}\n\n{}\n", ix + 1, hint));
         }
-        let languages = self.project.read(cx).languages().clone();
-        self.markdown = Some(cx.new(|cx| Markdown::new(source.into(), Some(languages), None, cx)));
+        let languages = self.project.as_ref().map(|p| p.read(cx).languages().clone());
+        self.markdown = Some(cx.new(|cx| Markdown::new(source.into(), languages, None, cx)));
     }
 
-    fn select_exercise(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn select_exercise(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let (Some(track), Some(exercise)) = (self.track.clone(), self.exercise(id)) else {
             return;
         };
@@ -203,13 +206,30 @@ impl LearnPanel {
         cx.notify();
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_track(
+        &mut self,
+        track: TrackWorkspace,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.track = Some(track);
+        self.progress = self.track.as_ref().unwrap().load_progress();
+        if let Some(first) = self.track.as_ref().and_then(|t| t.track.exercises().next()) {
+            let id = first.id().to_string();
+            self.select_exercise(&id, window, cx);
+        }
+    }
+
     /// Save the learner's file if it has unsaved edits.
     fn save_user_file(&self, cx: &mut Context<Self>) -> Task<anyhow::Result<()>> {
-        let (Some(track), Some(exercise)) = (&self.track, self.selected_exercise()) else {
+        let (Some(track), Some(exercise), Some(project)) =
+            (&self.track, self.selected_exercise(), &self.project)
+        else {
             return Task::ready(Ok(()));
         };
         let path = track.user_file(&exercise);
-        let project = self.project.clone();
+        let project = project.clone();
         let open = project.update(cx, |project, cx| project.open_local_buffer(&path, cx));
         cx.spawn(async move |_, cx| {
             let buffer = open.await?;
@@ -469,7 +489,7 @@ impl LearnPanel {
             .into_any_element()
     }
 
-    fn hint(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn hint(&mut self, cx: &mut Context<Self>) {
         let Some(exercise) = self.selected_exercise() else {
             return;
         };
@@ -477,6 +497,14 @@ impl LearnPanel {
         self.save_progress();
         self.rebuild_markdown(cx);
         cx.notify();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_exercise_starter(&mut self) -> anyhow::Result<()> {
+        let (Some(track), Some(exercise)) = (&self.track, self.selected_exercise()) else {
+            anyhow::bail!("no exercise selected");
+        };
+        track.reset_exercise(&exercise)
     }
 
     fn reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -497,12 +525,14 @@ impl LearnPanel {
             }
             track.reset_exercise(&exercise).log_err();
             let path = track.user_file(&exercise);
-            if let Ok(buffer) = project
-                .update(cx, |p, cx| p.open_local_buffer(&path, cx))
-                .await
-            {
-                let reload = buffer.update(cx, |b, cx| b.reload(cx));
-                reload.await.ok();
+            if let Some(project) = project {
+                if let Ok(buffer) = project
+                    .update(cx, |p, cx| p.open_local_buffer(&path, cx))
+                    .await
+                {
+                    let reload = buffer.update(cx, |b, cx| b.reload(cx));
+                    reload.await.ok();
+                }
             }
             this.update(cx, |this, cx| {
                 this.submit = None;

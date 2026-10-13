@@ -12,11 +12,11 @@ use workspace::{
 
 /// Full-pane learning track picker shown on startup (AC1).
 pub struct TrackPicker {
-    workspace: WeakEntity<Workspace>,
-    focus_handle: FocusHandle,
-    tracks: Vec<TrackSummary>,
-    careers: Vec<Career>,
-    error: Option<SharedString>,
+    pub(crate) workspace: WeakEntity<Workspace>,
+    pub(crate) focus_handle: FocusHandle,
+    pub(crate) tracks: Vec<TrackSummary>,
+    pub(crate) careers: Vec<Career>,
+    pub(crate) error: Option<SharedString>,
 }
 
 impl TrackPicker {
@@ -32,13 +32,13 @@ impl TrackPicker {
         this
     }
 
-    fn refresh(&mut self) {
+    pub(crate) fn refresh(&mut self) {
         let home = learn::learn_home();
         self.tracks = learn::installed_tracks(&home);
         self.careers = learn::installed_careers(&home);
     }
 
-    fn open_track(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn open_track(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
         let Some(summary) = self.tracks.get(index) else {
             return;
         };

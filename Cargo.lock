@@ -9841,6 +9841,7 @@ dependencies = [
  "project",
  "project_panel",
  "task",
+ "tempfile",
  "ui",
  "util",
  "workspace",
