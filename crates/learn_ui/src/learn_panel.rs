@@ -11,7 +11,7 @@ use learn::{
 use markdown::{Markdown, MarkdownElement, MarkdownFont, MarkdownStyle};
 use project::Project;
 use task::{RevealStrategy, SpawnInTerminal, TaskId};
-use ui::{Divider, ListItem, ProgressBar, prelude::*};
+use ui::{CommonAnimationExt as _, ListItem, ProgressBar, TintColor, prelude::*};
 use util::ResultExt as _;
 use workspace::{
     OpenOptions, OpenVisible, Workspace,
@@ -155,9 +155,8 @@ impl LearnPanel {
         };
         let hints_used = self.progress.exercise(exercise.id()).hints_used as usize;
         let mut source = format!(
-            "{}\n\n#### Instructions · {} XP\n\n{}\n",
+            "{}\n\n#### Instructions\n\n{}\n",
             exercise.context.trim(),
-            exercise.manifest.xp,
             exercise.instructions.trim()
         );
         for (ix, hint) in exercise.hints.iter().take(hints_used).enumerate() {
@@ -369,11 +368,12 @@ impl LearnPanel {
         let mut items = Vec::new();
         for (cix, chapter) in track.track.chapters.iter().enumerate() {
             items.push(
-                h_flex()
-                    .px_2()
-                    .pt_2()
+                div()
+                    .px_3()
+                    .when(cix > 0, |el| el.pt_3())
+                    .pb_1()
                     .child(
-                        Label::new(format!("{}. {}", cix + 1, chapter.manifest.title))
+                        Label::new(chapter.manifest.title.clone())
                             .size(LabelSize::Small)
                             .color(Color::Muted),
                     )
@@ -383,126 +383,158 @@ impl LearnPanel {
                 let id = exercise.id().to_string();
                 let status = self.progress.status(&id);
                 let unlocked = self.progress.is_unlocked(&track.track, &id);
+                let selected = self.selected.as_deref() == Some(id.as_str());
                 let (icon, color) = match (status, unlocked) {
                     (ExerciseStatus::Passed, _) => (IconName::Check, Color::Success),
+                    (_, false) => (IconName::Lock, Color::Muted),
                     (ExerciseStatus::InProgress, _) => (IconName::Circle, Color::Accent),
-                    (_, false) => (IconName::Lock, Color::Disabled),
                     _ => (IconName::Circle, Color::Muted),
                 };
-                let selected = self.selected.as_deref() == Some(id.as_str());
                 items.push(
-                    ListItem::new(SharedString::from(format!("ex-{id}")))
-                        .toggle_state(selected)
-                        .disabled(!unlocked)
-                        .start_slot(Icon::new(icon).color(color).size(IconSize::Small))
+                    div()
+                        .px_1()
                         .child(
-                            h_flex()
-                                .w_full()
-                                .justify_between()
-                                .child(Label::new(exercise.manifest.title.clone()).color(
-                                    if unlocked {
-                                        Color::Default
-                                    } else {
-                                        Color::Disabled
-                                    },
-                                ))
-                                .child(
+                            ListItem::new(SharedString::from(format!("ex-{id}")))
+                                .toggle_state(selected)
+                                .disabled(!unlocked)
+                                .start_slot(Icon::new(icon).color(color).size(IconSize::Small))
+                                .end_slot(
                                     Label::new(format!("{} XP", exercise.manifest.xp))
                                         .size(LabelSize::XSmall)
                                         .color(Color::Muted),
-                                ),
+                                )
+                                .child(Label::new(exercise.manifest.title.clone()).color(
+                                    if unlocked { Color::Default } else { Color::Muted },
+                                ))
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.select_exercise(&id, window, cx)
+                                })),
                         )
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            this.select_exercise(&id, window, cx)
-                        }))
                         .into_any_element(),
                 );
             }
         }
-        v_flex().gap_0p5().children(items).into_any_element()
+        v_flex().py_2().children(items).into_any_element()
     }
 
     fn render_result(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let status = cx.theme().status().clone();
+        let colors = cx.theme().colors().clone();
         if self.checking {
             return Some(
-                Label::new("Checking your code…")
-                    .color(Color::Muted)
+                h_flex()
+                    .gap_2()
+                    .p_3()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(colors.border_variant)
+                    .child(
+                        Icon::new(IconName::LoadCircle)
+                            .size(IconSize::Small)
+                            .color(Color::Muted)
+                            .with_rotate_animation(2),
+                    )
+                    .child(Label::new("Checking your code…").color(Color::Muted))
                     .into_any_element(),
             );
         }
         let state = self.submit.as_ref()?;
-        let colors = cx.theme().colors();
+        let code_block = |text: String| {
+            div()
+                .w_full()
+                .p_2()
+                .rounded_sm()
+                .bg(colors.editor_background)
+                .font_buffer(cx)
+                .text_xs()
+                .child(text)
+        };
         let el = match &state.outcome {
-            Ok(result) => {
-                let header = if result.passed {
+            Ok(result) if result.passed => v_flex()
+                .gap_2()
+                .bg(status.success_background)
+                .border_color(status.success_border)
+                .child(
                     h_flex()
                         .gap_2()
                         .child(Icon::new(IconName::Check).color(Color::Success))
-                        .child(Label::new("Great work! All checks passed.").color(Color::Success))
+                        .child(Label::new("Correct — all checks passed").color(Color::Success))
                         .when(state.xp_awarded > 0, |el| {
-                            el.child(
+                            el.child(div().flex_1()).child(
                                 Label::new(format!("+{} XP", state.xp_awarded))
-                                    .color(Color::Accent),
+                                    .color(Color::Success),
                             )
-                        })
-                } else {
-                    h_flex()
-                        .gap_2()
-                        .child(Icon::new(IconName::XCircle).color(Color::Error))
-                        .child(Label::new("Incorrect submission").color(Color::Error))
-                };
-                let checks = result.checks.iter().filter(|c| !c.passed).map(|c| {
-                    h_flex()
-                        .gap_2()
-                        .items_start()
-                        .child(
-                            Icon::new(IconName::Close)
-                                .size(IconSize::Small)
-                                .color(Color::Error),
-                        )
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w_0()
-                                .child(Label::new(c.message.clone()).size(LabelSize::Small)),
-                        )
-                });
-                let output = (!result.stdout.trim().is_empty()).then(|| {
-                    v_flex()
-                        .gap_1()
-                        .child(
-                            Label::new("Output")
-                                .size(LabelSize::XSmall)
-                                .color(Color::Muted),
-                        )
-                        .child(
-                            div()
-                                .p_2()
-                                .rounded_sm()
-                                .bg(colors.editor_background)
-                                .font_buffer(cx)
-                                .text_xs()
-                                .child(result.stdout.trim().to_string()),
-                        )
-                });
+                        }),
+                )
+                .when(!result.stdout.trim().is_empty(), |el| {
+                    el.child(code_block(result.stdout.trim().to_string()))
+                }),
+            Ok(result) => {
+                let failed: Vec<_> = result.checks.iter().filter(|c| !c.passed).collect();
                 v_flex()
                     .gap_2()
-                    .child(header)
-                    .children(checks)
-                    .children(output)
+                    .bg(status.error_background)
+                    .border_color(status.error_border)
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .child(Icon::new(IconName::XCircle).color(Color::Error))
+                            .child(Label::new("Not quite yet").color(Color::Error))
+                            .child(div().flex_1())
+                            .child(
+                                Label::new(format!(
+                                    "{} of {} checks failed",
+                                    failed.len(),
+                                    result.checks.len()
+                                ))
+                                .size(LabelSize::Small)
+                                .color(Color::Muted),
+                            ),
+                    )
+                    .children(failed.into_iter().map(|c| {
+                        h_flex()
+                            .gap_2()
+                            .items_start()
+                            .child(
+                                div().pt_0p5().child(
+                                    Icon::new(IconName::Close)
+                                        .size(IconSize::XSmall)
+                                        .color(Color::Error),
+                                ),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(Label::new(c.message.clone()).size(LabelSize::Small)),
+                            )
+                    }))
+                    .child(
+                        Label::new("Fix the items above and submit again, or take a hint.")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .when(!result.stdout.trim().is_empty(), |el| {
+                        el.child(code_block(result.stdout.trim().to_string()))
+                    })
             }
             Err(err) => v_flex()
                 .gap_2()
-                .child(Label::new("Could not check your code").color(Color::Error))
-                .child(Label::new(err.to_string()).size(LabelSize::Small)),
+                .bg(status.error_background)
+                .border_color(status.error_border)
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .child(Icon::new(IconName::XCircle).color(Color::Error))
+                        .child(Label::new("Couldn't check your code").color(Color::Error)),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .child(Label::new(err.to_string()).size(LabelSize::Small)),
+                ),
         };
-        Some(
-            el.p_2()
-                .rounded_md()
-                .border_1()
-                .border_color(colors.border)
-                .into_any_element(),
-        )
+        Some(el.p_3().rounded_md().border_1().into_any_element())
     }
 
     fn render_exercise(
@@ -519,57 +551,92 @@ impl LearnPanel {
             .as_ref()
             .and_then(|t| t.track.next_exercise(exercise.id()))
             .is_some();
+        let primary = if passed && has_next {
+            Button::new("learn-next", "Next exercise")
+                .style(ButtonStyle::Tinted(TintColor::Accent))
+                .full_width()
+                .end_icon(Icon::new(IconName::ArrowRight).size(IconSize::Small))
+                .on_click(cx.listener(|this, _, window, cx| this.next(window, cx)))
+        } else {
+            Button::new(
+                "learn-submit",
+                if self.checking { "Checking…" } else { "Submit answer" },
+            )
+            .style(ButtonStyle::Tinted(TintColor::Accent))
+            .full_width()
+            .disabled(self.checking)
+            .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx)))
+        };
         v_flex()
-            .gap_2()
+            .px_3()
+            .py_4()
+            .gap_4()
             .child(
-                h_flex()
-                    .gap_2()
-                    .child(Headline::new(exercise.manifest.title.clone()).size(HeadlineSize::Small))
-                    .when(passed, |el| {
-                        el.child(Icon::new(IconName::Check).color(Color::Success))
-                    }),
+                v_flex()
+                    .gap_1()
+                    .child(
+                        Headline::new(exercise.manifest.title.clone()).size(HeadlineSize::Small),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Label::new(format!("{} XP", exercise.manifest.xp))
+                                    .size(LabelSize::Small)
+                                    .color(Color::Muted),
+                            )
+                            .when(passed, |el| {
+                                el.child(
+                                    h_flex()
+                                        .gap_1()
+                                        .child(
+                                            Icon::new(IconName::Check)
+                                                .size(IconSize::XSmall)
+                                                .color(Color::Success),
+                                        )
+                                        .child(
+                                            Label::new(format!("Completed · earned {} XP", p.xp))
+                                                .size(LabelSize::Small)
+                                                .color(Color::Success),
+                                        ),
+                                )
+                            }),
+                    ),
             )
             .children(self.markdown.clone().map(|md| {
                 MarkdownElement::new(md, MarkdownStyle::themed(MarkdownFont::Agent, window, cx))
             }))
             .child(
-                h_flex()
-                    .flex_wrap()
-                    .gap_1()
+                v_flex()
+                    .gap_2()
+                    .child(primary)
                     .child(
-                        Button::new("learn-run", "Run Code")
-                            .start_icon(Icon::new(IconName::PlayOutlined))
-                            .on_click(cx.listener(|this, _, window, cx| this.run_code(window, cx))),
-                    )
-                    .child(
-                        Button::new("learn-submit", "Submit Answer")
-                            .style(ButtonStyle::Filled)
-                            .disabled(self.checking)
-                            .start_icon(Icon::new(IconName::Check))
-                            .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx))),
-                    )
-                    .child(
-                        Button::new(
-                            "learn-hint",
-                            format!("Hint (-{} XP)", exercise.manifest.hint_xp_cost),
-                        )
-                        .disabled(hints_left == 0 || passed)
-                        .start_icon(Icon::new(IconName::Sparkle))
-                        .on_click(cx.listener(|this, _, _, cx| this.hint(cx))),
-                    )
-                    .child(
-                        Button::new("learn-reset", "Reset")
-                            .start_icon(Icon::new(IconName::RotateCcw))
-                            .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
-                    )
-                    .when(has_next, |el| {
-                        el.child(
-                            Button::new("learn-next", "Next")
-                                .disabled(!passed)
-                                .end_icon(Icon::new(IconName::ArrowRight))
-                                .on_click(cx.listener(|this, _, window, cx| this.next(window, cx))),
-                        )
-                    }),
+                        h_flex()
+                            .gap_1()
+                            .child(
+                                Button::new("learn-run", "Run code")
+                                    .style(ButtonStyle::Subtle)
+                                    .start_icon(Icon::new(IconName::PlayOutlined).size(IconSize::Small))
+                                    .on_click(cx.listener(|this, _, window, cx| this.run_code(window, cx))),
+                            )
+                            .child(
+                                Button::new(
+                                    "learn-hint",
+                                    format!("Hint · −{} XP", exercise.manifest.hint_xp_cost),
+                                )
+                                .style(ButtonStyle::Subtle)
+                                .disabled(hints_left == 0 || passed)
+                                .start_icon(Icon::new(IconName::Sparkle).size(IconSize::Small))
+                                .on_click(cx.listener(|this, _, _, cx| this.hint(cx))),
+                            )
+                            .child(div().flex_1())
+                            .child(
+                                Button::new("learn-reset", "Reset")
+                                    .style(ButtonStyle::Subtle)
+                                    .start_icon(Icon::new(IconName::RotateCcw).size(IconSize::Small))
+                                    .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
+                            ),
+                    ),
             )
             .children(self.render_result(cx))
             .into_any_element()
@@ -578,45 +645,46 @@ impl LearnPanel {
 
 impl Render for LearnPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let border = cx.theme().colors().border_variant;
         let content = match self.track.clone() {
             None => self.render_empty(cx),
             Some(track) => {
                 let percent = self.progress.percent(&track.track);
+                let done = self.progress.passed_count(&track.track);
+                let total = track.track.exercises().count();
                 let exercise = self.selected_exercise();
                 v_flex()
                     .id("learn-panel-scroll")
                     .size_full()
                     .overflow_y_scroll()
-                    .p_2()
-                    .gap_2()
                     .child(
                         v_flex()
-                            .gap_1()
-                            .child(
-                                Headline::new(track.track.manifest.title.clone())
-                                    .size(HeadlineSize::XSmall),
-                            )
+                            .px_3()
+                            .py_3()
+                            .gap_2()
+                            .border_b_1()
+                            .border_color(border)
                             .child(
                                 h_flex()
-                                    .gap_2()
-                                    .child(div().flex_1().child(ProgressBar::new(
-                                        "learn-progress",
-                                        percent as f32,
-                                        100.,
-                                        cx,
-                                    )))
+                                    .justify_between()
                                     .child(
-                                        Label::new(format!(
-                                            "{percent}% · {} XP",
-                                            self.progress.total_xp()
-                                        ))
-                                        .size(LabelSize::Small)
-                                        .color(Color::Muted),
+                                        Headline::new(track.track.manifest.title.clone())
+                                            .size(HeadlineSize::XSmall),
+                                    )
+                                    .child(
+                                        Label::new(format!("{} XP", self.progress.total_xp()))
+                                            .size(LabelSize::Small)
+                                            .color(Color::Accent),
                                     ),
+                            )
+                            .child(ProgressBar::new("learn-progress", percent as f32, 100., cx))
+                            .child(
+                                Label::new(format!("{done} of {total} exercises · {percent}%"))
+                                    .size(LabelSize::XSmall)
+                                    .color(Color::Muted),
                             ),
                     )
-                    .child(self.render_tree(&track, cx))
-                    .child(Divider::horizontal())
+                    .child(div().border_b_1().border_color(border).child(self.render_tree(&track, cx)))
                     .children(exercise.map(|e| self.render_exercise(&e, window, cx)))
                     .into_any_element()
             }
