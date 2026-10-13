@@ -129,6 +129,8 @@ pub fn run_command(ws: &TrackWorkspace, exercise: &Exercise) -> (PathBuf, Vec<St
                 .into_owned(),
             "--script".into(),
             ws.user_file(exercise).to_string_lossy().into_owned(),
+            "--language".into(),
+            exercise.manifest.language.clone(),
         ],
     )
 }
@@ -146,9 +148,11 @@ pub fn check_exercise(ws: &TrackWorkspace, exercise: &Exercise, timeout: Duratio
         .arg("--script")
         .arg(ws.user_file(exercise))
         .arg("--solution")
-        .arg(ws.source_file(exercise, "solution.py"))
+        .arg(ws.source_file(exercise, &exercise.variant_file("solution")))
         .arg("--check")
-        .arg(ws.source_file(exercise, "check.py"));
+        .arg(ws.source_file(exercise, "check.py"))
+        .arg("--language")
+        .arg(&exercise.manifest.language);
     let outcome =
         run_with_timeout(command, timeout).and_then(|(out, err)| parse_check_output(&out, &err));
     let log = match &outcome {
@@ -246,5 +250,36 @@ mod tests {
         let r = check_exercise(&ws, &ex, DEFAULT_TIMEOUT).unwrap();
         assert!(!r.passed);
         assert!(r.checks[0].message.contains("ZeroDivisionError"));
+    }
+
+    /// Every bundled exercise: the solution passes and the starter fails.
+    #[test]
+    fn all_bundled_exercises_solution_passes_starter_fails() {
+        let has = |module: &str| {
+            Command::new("python3")
+                .args(["-c", &format!("import {module}")])
+                .status()
+                .is_ok_and(|s| s.success())
+        };
+        if !has("numpy") || !has("flask") {
+            eprintln!("skipping: python3 with numpy and flask not available");
+            return;
+        }
+        let home = tempfile::tempdir().unwrap();
+        crate::install_bundled_tracks(home.path()).unwrap();
+        for summary in crate::installed_tracks(home.path()) {
+            let ws = TrackWorkspace::materialize(&summary.track, &summary.workspace_dir).unwrap();
+            for ex in ws.track.exercises() {
+                let r = check_exercise(&ws, ex, DEFAULT_TIMEOUT).unwrap();
+                assert!(!r.passed, "starter of {} passed", ex.id());
+                std::fs::copy(
+                    ws.source_file(ex, &ex.variant_file("solution")),
+                    ws.user_file(ex),
+                )
+                .unwrap();
+                let r = check_exercise(&ws, ex, DEFAULT_TIMEOUT).unwrap();
+                assert!(r.passed, "solution of {} failed: {r:?}", ex.id());
+            }
+        }
     }
 }

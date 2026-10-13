@@ -1,0 +1,7 @@
+id = "axum-health-route"
+title = "A Health Check Route"
+xp = 100
+kind = "static"
+language = "rust"
+file = "main.rs"
+layout = "project"

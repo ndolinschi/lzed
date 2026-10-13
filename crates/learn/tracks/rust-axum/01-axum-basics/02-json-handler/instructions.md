@@ -1,0 +1,3 @@
+- Derive `Deserialize` for `CreateTask` and `Serialize` for `Task`.
+- Write `async fn create_task(Json(input): Json<CreateTask>) -> Json<Task>` that returns a `Task` with `id: 1` and the input's `title`.
+- Register it with `.route("/tasks", post(create_task))`.

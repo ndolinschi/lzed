@@ -1,0 +1,1 @@
+Claude Code reads a `CLAUDE.md` file at the root of your repository at the start of every session. Good memory files are short and concrete: what the project is, how to build and test it, and the conventions an agent must follow.

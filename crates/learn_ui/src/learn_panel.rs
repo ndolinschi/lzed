@@ -25,6 +25,7 @@ const LEARN_PANEL_KEY: &str = "LearnPanel";
 struct SubmitState {
     outcome: CheckOutcome,
     xp_awarded: u32,
+    skill_earned: Option<String>,
 }
 
 /// Left-dock panel with the chapter/exercise tree and the exercise view (AC3, AC4).
@@ -40,6 +41,7 @@ pub struct LearnPanel {
     submit: Option<SubmitState>,
     checking: bool,
     auto_opened: bool,
+    show_ai_connect: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -83,6 +85,7 @@ impl LearnPanel {
             submit: None,
             checking: false,
             auto_opened: false,
+            show_ai_connect: false,
             _subscriptions: vec![subscription],
         };
         this.detect_track(window, cx);
@@ -178,9 +181,12 @@ impl LearnPanel {
         self.progress.mark_opened(id);
         self.save_progress();
         self.rebuild_markdown(cx);
+        self.show_ai_connect = false;
         let path = track.user_file(&exercise);
+        let layout = exercise.manifest.layout;
         self.workspace
             .update(cx, |workspace, cx| {
+                apply_layout(workspace, layout, window, cx);
                 workspace
                     .open_abs_path(
                         path,
@@ -282,16 +288,178 @@ impl LearnPanel {
                     exercise.manifest.xp,
                     exercise.manifest.hint_xp_cost,
                 );
+                let track = this.track.clone();
+                let skill_earned = track.and_then(|t| {
+                    this.progress
+                        .award_skill_if_complete(&t.track)
+                        .then(|| t.track.manifest.skill.clone())
+                        .flatten()
+                });
                 this.save_progress();
                 this.submit = Some(SubmitState {
                     outcome,
                     xp_awarded,
+                    skill_earned,
                 });
                 cx.notify();
             })
             .ok();
         })
         .detach();
+    }
+
+    fn ai_prompt(&self, exercise: &Exercise) -> String {
+        let code = self
+            .track
+            .as_ref()
+            .and_then(|t| std::fs::read_to_string(t.user_file(exercise)).ok())
+            .unwrap_or_default();
+        let mut prompt = format!(
+            "You are a patient programming tutor inside LearnZed. Help me with the exercise below. \
+             Do NOT write the full solution or the exact final code. Point out what is wrong or \
+             missing, explain the relevant concept, and give me the next small step or a hint.\n\n\
+             Exercise: {}\n\nContext:\n{}\n\nInstructions:\n{}\n\nMy current code ({}):\n```{}\n{}\n```\n",
+            exercise.manifest.title,
+            exercise.context.trim(),
+            exercise.instructions.trim(),
+            exercise.manifest.file,
+            exercise.manifest.language,
+            code.trim_end(),
+        );
+        if let Some(SubmitState {
+            outcome: Ok(result),
+            ..
+        }) = &self.submit
+        {
+            let failed: Vec<_> = result
+                .checks
+                .iter()
+                .filter(|c| !c.passed)
+                .map(|c| format!("- {}", c.message))
+                .collect();
+            if !failed.is_empty() {
+                prompt.push_str(&format!(
+                    "\nMy last submission failed these checks:\n{}\n",
+                    failed.join("\n")
+                ));
+            }
+        }
+        prompt
+    }
+
+    /// Whether a language model provider is configured and authenticated.
+    fn ai_available(cx: &App) -> bool {
+        language_model::LanguageModelRegistry::read_global(cx)
+            .default_model()
+            .is_some()
+    }
+
+    fn ask_ai(&mut self, force: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(exercise) = self.selected_exercise() else {
+            return;
+        };
+        if !force && !Self::ai_available(cx) {
+            self.show_ai_connect = true;
+            cx.notify();
+            return;
+        }
+        self.show_ai_connect = false;
+        let save = self.save_user_file(cx);
+        cx.spawn_in(window, async move |this, cx| {
+            save.await.log_err();
+            this.update_in(cx, |this, window, cx| {
+                let prompt = agent_ui::ExternalSourcePrompt::new(&this.ai_prompt(&exercise));
+                this.workspace
+                    .update(cx, |workspace, cx| {
+                        let Some(panel) = workspace.panel::<agent_ui::AgentPanel>(cx) else {
+                            return;
+                        };
+                        workspace.focus_panel::<agent_ui::AgentPanel>(window, cx);
+                        panel.update(cx, |panel, cx| {
+                            panel.new_agent_thread_with_external_source_prompt(prompt, window, cx)
+                        });
+                    })
+                    .ok();
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn render_ai_connect(&self, cx: &mut Context<Self>) -> AnyElement {
+        let colors = cx.theme().colors();
+        v_flex()
+            .gap_2()
+            .p_3()
+            .rounded_md()
+            .border_1()
+            .border_color(colors.border)
+            .bg(colors.surface_background)
+            .child(
+                h_flex()
+                    .gap_2()
+                    .child(Icon::new(IconName::Sparkle).color(Color::Accent))
+                    .child(Label::new("Connect an AI tutor"))
+                    .child(div().flex_1())
+                    .child(
+                        IconButton::new("ai-connect-close", IconName::Close)
+                            .icon_size(IconSize::Small)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.show_ai_connect = false;
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                Label::new(
+                    "Ask AI needs a language model. Add an API key for a provider \
+                     (Anthropic, OpenAI, Ollama, …) in the agent settings.",
+                )
+                .size(LabelSize::Small),
+            )
+            .child(
+                Label::new(
+                    "Prefer your own harness? Connect an external agent such as Claude Code, \
+                     Codex or Gemini CLI via the Agent Client Protocol (ACP) — it gets the same \
+                     exercise context.",
+                )
+                .size(LabelSize::Small)
+                .color(Color::Muted),
+            )
+            .child(
+                h_flex()
+                    .gap_1()
+                    .flex_wrap()
+                    .child(
+                        Button::new("ai-connect-provider", "Connect AI provider")
+                            .style(ButtonStyle::Tinted(TintColor::Accent))
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(
+                                    zed_actions::agent::OpenSettings.boxed_clone(),
+                                    cx,
+                                )
+                            }),
+                    )
+                    .child(
+                        Button::new("ai-connect-external", "Use an external agent")
+                            .style(ButtonStyle::Subtle)
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(
+                                    zed_actions::agent::OpenSettings.boxed_clone(),
+                                    cx,
+                                )
+                            }),
+                    )
+                    .child(
+                        Button::new("ai-connect-open", "Open agent panel")
+                            .style(ButtonStyle::Subtle)
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.ask_ai(true, window, cx)),
+                            ),
+                    ),
+            )
+            .into_any_element()
     }
 
     fn hint(&mut self, cx: &mut Context<Self>) {
@@ -404,7 +572,11 @@ impl LearnPanel {
                                         .color(Color::Muted),
                                 )
                                 .child(Label::new(exercise.manifest.title.clone()).color(
-                                    if unlocked { Color::Default } else { Color::Muted },
+                                    if unlocked {
+                                        Color::Default
+                                    } else {
+                                        Color::Muted
+                                    },
                                 ))
                                 .on_click(cx.listener(move |this, _, window, cx| {
                                     this.select_exercise(&id, window, cx)
@@ -466,6 +638,24 @@ impl LearnPanel {
                             )
                         }),
                 )
+                .when_some(state.skill_earned.clone(), |el, skill| {
+                    el.child(
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Icon::new(IconName::Star)
+                                    .size(IconSize::Small)
+                                    .color(Color::Success),
+                            )
+                            .child(
+                                Label::new(format!(
+                                    "Track complete — you earned the {skill} skill"
+                                ))
+                                .size(LabelSize::Small)
+                                .color(Color::Success),
+                            ),
+                    )
+                })
                 .when(!result.stdout.trim().is_empty(), |el| {
                     el.child(code_block(result.stdout.trim().to_string()))
                 }),
@@ -560,7 +750,11 @@ impl LearnPanel {
         } else {
             Button::new(
                 "learn-submit",
-                if self.checking { "Checking…" } else { "Submit answer" },
+                if self.checking {
+                    "Checking…"
+                } else {
+                    "Submit answer"
+                },
             )
             .style(ButtonStyle::Tinted(TintColor::Accent))
             .full_width()
@@ -574,9 +768,7 @@ impl LearnPanel {
             .child(
                 v_flex()
                     .gap_1()
-                    .child(
-                        Headline::new(exercise.manifest.title.clone()).size(HeadlineSize::Small),
-                    )
+                    .child(Headline::new(exercise.manifest.title.clone()).size(HeadlineSize::Small))
                     .child(
                         h_flex()
                             .gap_2()
@@ -607,37 +799,49 @@ impl LearnPanel {
                 MarkdownElement::new(md, MarkdownStyle::themed(MarkdownFont::Agent, window, cx))
             }))
             .child(
-                v_flex()
-                    .gap_2()
-                    .child(primary)
-                    .child(
-                        h_flex()
-                            .gap_1()
-                            .child(
-                                Button::new("learn-run", "Run code")
-                                    .style(ButtonStyle::Subtle)
-                                    .start_icon(Icon::new(IconName::PlayOutlined).size(IconSize::Small))
-                                    .on_click(cx.listener(|this, _, window, cx| this.run_code(window, cx))),
-                            )
-                            .child(
-                                Button::new(
-                                    "learn-hint",
-                                    format!("Hint · −{} XP", exercise.manifest.hint_xp_cost),
-                                )
+                v_flex().gap_2().child(primary).child(
+                    h_flex()
+                        .gap_1()
+                        .child(
+                            Button::new("learn-run", "Run code")
                                 .style(ButtonStyle::Subtle)
-                                .disabled(hints_left == 0 || passed)
-                                .start_icon(Icon::new(IconName::Sparkle).size(IconSize::Small))
-                                .on_click(cx.listener(|this, _, _, cx| this.hint(cx))),
+                                .start_icon(Icon::new(IconName::PlayOutlined).size(IconSize::Small))
+                                .on_click(
+                                    cx.listener(|this, _, window, cx| this.run_code(window, cx)),
+                                ),
+                        )
+                        .child(
+                            Button::new(
+                                "learn-hint",
+                                format!("Hint · −{} XP", exercise.manifest.hint_xp_cost),
                             )
-                            .child(div().flex_1())
-                            .child(
-                                Button::new("learn-reset", "Reset")
-                                    .style(ButtonStyle::Subtle)
-                                    .start_icon(Icon::new(IconName::RotateCcw).size(IconSize::Small))
-                                    .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
-                            ),
-                    ),
+                            .style(ButtonStyle::Subtle)
+                            .disabled(hints_left == 0 || passed)
+                            .start_icon(Icon::new(IconName::Info).size(IconSize::Small))
+                            .on_click(cx.listener(|this, _, _, cx| this.hint(cx))),
+                        )
+                        .child(
+                            Button::new("learn-ask-ai", "Ask AI")
+                                .style(ButtonStyle::Subtle)
+                                .start_icon(Icon::new(IconName::Sparkle).size(IconSize::Small))
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.ask_ai(false, window, cx)
+                                })),
+                        )
+                        .child(div().flex_1())
+                        .child(
+                            Button::new("learn-reset", "Reset")
+                                .style(ButtonStyle::Subtle)
+                                .start_icon(Icon::new(IconName::RotateCcw).size(IconSize::Small))
+                                .on_click(
+                                    cx.listener(|this, _, window, cx| this.reset(window, cx)),
+                                ),
+                        ),
+                ),
             )
+            .when(self.show_ai_connect, |el| {
+                el.child(self.render_ai_connect(cx))
+            })
             .children(self.render_result(cx))
             .into_any_element()
     }
@@ -678,13 +882,47 @@ impl Render for LearnPanel {
                                     ),
                             )
                             .child(ProgressBar::new("learn-progress", percent as f32, 100., cx))
+                            .when_some(track.track.manifest.skill.clone(), |el, skill| {
+                                let earned = self.progress.skill_earned_at.is_some();
+                                el.child(
+                                    h_flex()
+                                        .gap_1()
+                                        .child(
+                                            Icon::new(if earned {
+                                                IconName::Check
+                                            } else {
+                                                IconName::Star
+                                            })
+                                            .size(IconSize::XSmall)
+                                            .color(
+                                                if earned { Color::Success } else { Color::Muted },
+                                            ),
+                                        )
+                                        .child(
+                                            Label::new(if earned {
+                                                format!("Skill earned: {skill}")
+                                            } else {
+                                                format!("Complete the track to earn: {skill}")
+                                            })
+                                            .size(LabelSize::XSmall)
+                                            .color(
+                                                if earned { Color::Success } else { Color::Muted },
+                                            ),
+                                        ),
+                                )
+                            })
                             .child(
                                 Label::new(format!("{done} of {total} exercises · {percent}%"))
                                     .size(LabelSize::XSmall)
                                     .color(Color::Muted),
                             ),
                     )
-                    .child(div().border_b_1().border_color(border).child(self.render_tree(&track, cx)))
+                    .child(
+                        div()
+                            .border_b_1()
+                            .border_color(border)
+                            .child(self.render_tree(&track, cx)),
+                    )
                     .children(exercise.map(|e| self.render_exercise(&e, window, cx)))
                     .into_any_element()
             }
@@ -750,5 +988,38 @@ impl Panel for LearnPanel {
 
     fn activation_priority(&self) -> u32 {
         10
+    }
+}
+
+/// LEARNZED: `layout = "focused"` hides the Project Panel's dock (unless it
+/// also hosts the Learn panel); `layout = "project"` reveals it.
+fn apply_layout(
+    workspace: &mut Workspace,
+    layout: learn::Layout,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    for position in [
+        DockPosition::Left,
+        DockPosition::Right,
+        DockPosition::Bottom,
+    ] {
+        let dock = workspace.dock_at_position(position).clone();
+        let (has_project, has_learn) = {
+            let dock = dock.read(cx);
+            (
+                dock.panel::<project_panel::ProjectPanel>().is_some(),
+                dock.panel::<LearnPanel>().is_some(),
+            )
+        };
+        if !has_project || has_learn {
+            continue;
+        }
+        match layout {
+            learn::Layout::Focused => dock.update(cx, |dock, cx| dock.set_open(false, window, cx)),
+            learn::Layout::Project => {
+                workspace.open_panel::<project_panel::ProjectPanel>(window, cx)
+            }
+        }
     }
 }

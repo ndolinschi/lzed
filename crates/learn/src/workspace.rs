@@ -140,7 +140,7 @@ impl TrackWorkspace {
         if let Some(dir) = dst.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let starter = self.source_file(exercise, "starter.py");
+        let starter = self.source_file(exercise, &exercise.variant_file("starter"));
         let contents = std::fs::read(&starter).unwrap_or_default();
         std::fs::write(&dst, contents).with_context(|| format!("writing {}", dst.display()))
     }

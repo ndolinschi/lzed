@@ -1,0 +1,6 @@
+id = "flask-api"
+title = "Flask API"
+version = "1.0.0"
+language = "python"
+description = "Build a small JSON API with Flask and test it with Flask's test client."
+skill = "Flask APIs"

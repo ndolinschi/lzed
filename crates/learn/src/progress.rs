@@ -34,6 +34,8 @@ pub struct Progress {
     pub last_opened: Option<u64>,
     pub current_exercise: Option<String>,
     pub exercises: BTreeMap<String, ExerciseProgress>,
+    /// When the track's skill was earned (all exercises passed).
+    pub skill_earned_at: Option<u64>,
 }
 
 impl Progress {
@@ -114,6 +116,20 @@ impl Progress {
             e.status = ExerciseStatus::InProgress;
         }
         0
+    }
+
+    /// Record the track's skill once every exercise is passed.
+    /// Returns true when the skill was newly earned.
+    pub fn award_skill_if_complete(&mut self, track: &Track) -> bool {
+        if self.skill_earned_at.is_none()
+            && track.manifest.skill.is_some()
+            && track.exercises().count() > 0
+            && self.passed_count(track) == track.exercises().count()
+        {
+            self.skill_earned_at = Some(now_unix());
+            return true;
+        }
+        false
     }
 
     pub fn total_xp(&self) -> u32 {
@@ -213,5 +229,12 @@ mod tests {
         assert_eq!(p.resume_exercise(&track).unwrap().id(), "variables");
         assert_eq!(p.use_hint("variables", 1), 1);
         assert_eq!(p.use_hint("variables", 1), 1);
+        assert!(!p.award_skill_if_complete(&track));
+        for e in track.exercises() {
+            p.record_submission(e.id(), true, 10, 0);
+        }
+        assert!(p.award_skill_if_complete(&track));
+        assert!(!p.award_skill_if_complete(&track));
+        assert!(p.skill_earned_at.is_some());
     }
 }

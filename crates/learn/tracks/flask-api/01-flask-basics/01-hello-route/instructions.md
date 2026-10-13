@@ -1,0 +1,2 @@
+- Create a Flask app called `app`.
+- Add a route for `/` that returns the text `Hello, LearnZed!`.

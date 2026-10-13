@@ -14,6 +14,7 @@ import ast
 import contextlib
 import io
 import json
+import re
 import sys
 import traceback
 
@@ -78,7 +79,41 @@ def _called_functions(source):
     return names
 
 
+def strip_comments(src):
+    """Remove // line comments and /* */ block comments (C-like languages)."""
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    return re.sub(r"//[^\n]*", "", src)
+
+
+def balanced(src):
+    pairs = {")": "(", "]": "[", "}": "{"}
+    stack = []
+    for ch in re.sub(r'"(?:\\.|[^"\\])*"', '""', src):
+        if ch in "([{":
+            stack.append(ch)
+        elif ch in pairs:
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+    return not stack
+
+
+def markdown_sections(src):
+    """Map lowercase `## Heading` names to their body text."""
+    sections, current = {}, None
+    for line in src.splitlines():
+        m = re.match(r"^##\s+(.*?)\s*$", line)
+        if m:
+            current = m.group(1).lower()
+            sections[current] = ""
+        elif current is not None:
+            sections[current] += line + "\n"
+    return sections
+
+
 def run(args):
+    if args.language != "python":
+        print(f"This is a {args.language} exercise that is checked statically. Press Submit to check it.")
+        return 0
     ns = {"__name__": "__main__"}
     exec(compile(_read(args.setup), "setup.py", "exec"), ns)
     sys.argv = [args.script]
@@ -97,6 +132,8 @@ def check(args):
     setup_src = _read(args.setup)
     user_src = _read(args.script)
     checks = []
+    if args.language != "python":
+        return check_static(args, user_src)
 
     user_ns = {"__name__": "__main__"}
     _, _, setup_exc = _exec(setup_src, "setup.py", user_ns)
@@ -160,6 +197,30 @@ def check(args):
     return {"passed": passed, "checks": checks, "stdout": user_out, "stderr": user_err}
 
 
+def check_static(args, user_src):
+    """Exercises in other languages: check.py inspects the source text."""
+    checks = []
+
+    def check(condition, name="custom check", message="Check failed."):
+        ok = bool(condition)
+        checks.append({"name": name, "passed": ok, "message": "" if ok else message})
+        return ok
+
+    ns = {
+        "check": check,
+        "user_source": user_src,
+        "solution_source": _read(args.solution),
+        "strip_comments": strip_comments,
+        "balanced": balanced,
+        "markdown_sections": markdown_sections,
+    }
+    _, _, check_exc = _exec(_read(args.check), "check.py", ns)
+    if check_exc:
+        checks.append({"name": "checker", "passed": False, "message": "The exercise checker crashed:\n" + check_exc})
+    passed = bool(checks) and all(c["passed"] for c in checks)
+    return {"passed": passed, "checks": checks, "stdout": "", "stderr": ""}
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("mode", choices=["run", "check"])
@@ -167,6 +228,7 @@ def main():
     p.add_argument("--script", required=True)
     p.add_argument("--solution")
     p.add_argument("--check")
+    p.add_argument("--language", default="python")
     args = p.parse_args()
     if args.mode == "run":
         sys.exit(run(args))

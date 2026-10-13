@@ -2,7 +2,7 @@ use gpui::{
     App, Context, EventEmitter, FocusHandle, Focusable, PathPromptOptions, Render, WeakEntity,
     Window,
 };
-use learn::{TrackSummary, TrackWorkspace};
+use learn::{Career, TrackSummary, TrackWorkspace};
 use ui::{ProgressBar, TintColor, prelude::*};
 use util::ResultExt as _;
 use workspace::{
@@ -15,6 +15,7 @@ pub struct TrackPicker {
     workspace: WeakEntity<Workspace>,
     focus_handle: FocusHandle,
     tracks: Vec<TrackSummary>,
+    careers: Vec<Career>,
     error: Option<SharedString>,
 }
 
@@ -24,6 +25,7 @@ impl TrackPicker {
             workspace,
             focus_handle: cx.focus_handle(),
             tracks: Vec::new(),
+            careers: Vec::new(),
             error: None,
         };
         this.refresh();
@@ -31,7 +33,9 @@ impl TrackPicker {
     }
 
     fn refresh(&mut self) {
-        self.tracks = learn::installed_tracks(&learn::learn_home());
+        let home = learn::learn_home();
+        self.tracks = learn::installed_tracks(&home);
+        self.careers = learn::installed_careers(&home);
     }
 
     fn open_track(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -125,9 +129,7 @@ impl TrackPicker {
                         h_flex()
                             .gap_3()
                             .justify_between()
-                            .child(
-                                Headline::new(manifest.title.clone()).size(HeadlineSize::Small),
-                            )
+                            .child(Headline::new(manifest.title.clone()).size(HeadlineSize::Small))
                             .child(
                                 Button::new(("open-track", index), cta)
                                     .style(ButtonStyle::Tinted(TintColor::Accent))
@@ -140,6 +142,40 @@ impl TrackPicker {
                     .child(Label::new(meta).size(LabelSize::Small).color(Color::Muted))
                     .when(!manifest.description.is_empty(), |el| {
                         el.child(div().pt_2().child(Label::new(manifest.description.clone())))
+                    })
+                    .when_some(manifest.skill.clone(), |el, skill| {
+                        let earned = summary.skill_earned_at.is_some();
+                        el.child(
+                            h_flex()
+                                .pt_2()
+                                .gap_1()
+                                .child(
+                                    Icon::new(if earned {
+                                        IconName::Check
+                                    } else {
+                                        IconName::Star
+                                    })
+                                    .size(IconSize::XSmall)
+                                    .color(if earned {
+                                        Color::Success
+                                    } else {
+                                        Color::Muted
+                                    }),
+                                )
+                                .child(
+                                    Label::new(if earned {
+                                        format!("Skill earned: {skill}")
+                                    } else {
+                                        format!("Earns skill: {skill}")
+                                    })
+                                    .size(LabelSize::Small)
+                                    .color(if earned {
+                                        Color::Success
+                                    } else {
+                                        Color::Muted
+                                    }),
+                                ),
+                        )
                     }),
             )
             .child(
@@ -154,7 +190,10 @@ impl TrackPicker {
                             .justify_between()
                             .child(
                                 Label::new(if started {
-                                    format!("{done} of {total} exercises complete · {} XP", summary.xp)
+                                    format!(
+                                        "{done} of {total} exercises complete · {} XP",
+                                        summary.xp
+                                    )
                                 } else {
                                     "Not started yet".to_string()
                                 })
@@ -180,6 +219,195 @@ impl TrackPicker {
             )
     }
 
+    fn track_index(&self, id: &str) -> Option<usize> {
+        self.tracks.iter().position(|t| t.track.id() == id)
+    }
+
+    fn render_section_header(title: &str, detail: &str) -> impl IntoElement {
+        v_flex()
+            .gap_0p5()
+            .child(Headline::new(title.to_string()).size(HeadlineSize::Small))
+            .child(
+                Label::new(detail.to_string())
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            )
+    }
+
+    fn render_skills(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let skills = learn::earned_skills(&self.tracks);
+        let total_xp: u32 = self.tracks.iter().map(|t| t.xp).sum();
+        let colors = cx.theme().colors();
+        h_flex()
+            .gap_3()
+            .px_4()
+            .py_3()
+            .rounded_md()
+            .bg(colors.surface_background)
+            .child(
+                v_flex()
+                    .gap_0p5()
+                    .child(
+                        Label::new("Your profile")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .child(Label::new(format!(
+                        "{total_xp} XP · {} skills",
+                        skills.len()
+                    ))),
+            )
+            .child(div().flex_1())
+            .child(if skills.is_empty() {
+                Label::new("Complete a skill track to earn your first skill.")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted)
+                    .into_any_element()
+            } else {
+                h_flex()
+                    .gap_1()
+                    .flex_wrap()
+                    .children(skills.into_iter().map(|s| {
+                        h_flex()
+                            .gap_1()
+                            .px_2()
+                            .py_0p5()
+                            .rounded_sm()
+                            .border_1()
+                            .border_color(colors.border_variant)
+                            .child(
+                                Icon::new(IconName::Star)
+                                    .size(IconSize::XSmall)
+                                    .color(Color::Accent),
+                            )
+                            .child(Label::new(s.skill).size(LabelSize::Small))
+                    }))
+                    .into_any_element()
+            })
+    }
+
+    fn render_career(
+        &self,
+        index: usize,
+        career: &Career,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let colors = cx.theme().colors();
+        let steps: Vec<_> = career
+            .tracks
+            .iter()
+            .filter_map(|id| self.tracks.iter().find(|t| t.track.id() == id))
+            .collect();
+        let total = steps.len().max(1);
+        let percent = steps.iter().map(|t| t.percent).sum::<u32>() / total as u32;
+        let next = steps
+            .iter()
+            .find(|t| t.percent < 100)
+            .or(steps.last())
+            .map(|t| t.track.id().to_string());
+        let started = steps.iter().any(|t| t.last_opened.is_some());
+        v_flex()
+            .id(("career", index))
+            .rounded_md()
+            .border_1()
+            .border_color(colors.border_variant)
+            .bg(colors.editor_background)
+            .hover(|style| style.border_color(colors.border))
+            .child(
+                v_flex()
+                    .p_4()
+                    .gap_1()
+                    .child(
+                        h_flex()
+                            .gap_3()
+                            .justify_between()
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(Icon::new(IconName::Book).color(Color::Accent))
+                                    .child(
+                                        Headline::new(career.title.clone())
+                                            .size(HeadlineSize::Small),
+                                    ),
+                            )
+                            .child(
+                                Button::new(
+                                    ("open-career", index),
+                                    if started {
+                                        "Continue path"
+                                    } else {
+                                        "Start path"
+                                    },
+                                )
+                                .style(ButtonStyle::Tinted(TintColor::Accent))
+                                .end_icon(Icon::new(IconName::ArrowRight).size(IconSize::Small))
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
+                                        if let Some(ix) =
+                                            next.as_deref().and_then(|id| this.track_index(id))
+                                        {
+                                            this.open_track(ix, window, cx);
+                                        }
+                                    },
+                                )),
+                            ),
+                    )
+                    .child(
+                        Label::new(format!(
+                            "Career path · {} tracks · {percent}% complete",
+                            steps.len()
+                        ))
+                        .size(LabelSize::Small)
+                        .color(Color::Muted),
+                    )
+                    .when(!career.description.is_empty(), |el| {
+                        el.child(div().pt_2().child(Label::new(career.description.clone())))
+                    }),
+            )
+            .child(
+                v_flex()
+                    .px_4()
+                    .py_3()
+                    .gap_2()
+                    .border_t_1()
+                    .border_color(colors.border_variant)
+                    .children(steps.iter().enumerate().map(|(step, t)| {
+                        let (icon, color) = if t.percent == 100 {
+                            (IconName::Check, Color::Success)
+                        } else if t.last_opened.is_some() {
+                            (IconName::Circle, Color::Accent)
+                        } else {
+                            (IconName::Circle, Color::Muted)
+                        };
+                        h_flex()
+                            .gap_2()
+                            .child(Icon::new(icon).size(IconSize::Small).color(color))
+                            .child(Label::new(format!(
+                                "{}. {}",
+                                step + 1,
+                                t.track.manifest.title
+                            )))
+                            .child(div().flex_1())
+                            .when_some(t.track.manifest.skill.clone(), |el, skill| {
+                                el.child(
+                                    Label::new(skill)
+                                        .size(LabelSize::XSmall)
+                                        .color(Color::Muted),
+                                )
+                            })
+                            .child(
+                                Label::new(format!("{}%", t.percent))
+                                    .size(LabelSize::Small)
+                                    .color(if t.percent == 100 {
+                                        Color::Success
+                                    } else {
+                                        Color::Muted
+                                    }),
+                            )
+                    })),
+            )
+    }
+
     fn render_empty(&self, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .items_center()
@@ -189,7 +417,11 @@ impl TrackPicker {
             .border_1()
             .border_dashed()
             .border_color(cx.theme().colors().border_variant)
-            .child(Icon::new(IconName::Book).size(IconSize::Medium).color(Color::Muted))
+            .child(
+                Icon::new(IconName::Book)
+                    .size(IconSize::Medium)
+                    .color(Color::Muted),
+            )
             .child(Label::new("No learning tracks installed"))
             .child(
                 Label::new("Import a track folder that contains a track.toml.")
@@ -223,6 +455,13 @@ impl Render for TrackPicker {
             .map(|(ix, t)| self.render_track(ix, t, cx).into_any_element())
             .collect::<Vec<_>>();
         let empty = tracks.is_empty();
+        let careers = self
+            .careers
+            .clone()
+            .iter()
+            .enumerate()
+            .map(|(ix, c)| self.render_career(ix, c, cx).into_any_element())
+            .collect::<Vec<_>>();
         div()
             .id("track-picker")
             .key_context("TrackPicker")
@@ -238,7 +477,7 @@ impl Render for TrackPicker {
                         .px_6()
                         .pt_24()
                         .pb_12()
-                        .gap_6()
+                        .gap_8()
                         .child(
                             h_flex()
                                 .items_end()
@@ -281,7 +520,29 @@ impl Render for TrackPicker {
                             )
                         })
                         .when(empty, |el| el.child(self.render_empty(cx)))
-                        .child(v_flex().gap_3().children(tracks)),
+                        .when(!empty, |el| el.child(self.render_skills(cx)))
+                        .when(!careers.is_empty(), |el| {
+                            el.child(
+                                v_flex()
+                                    .gap_3()
+                                    .child(Self::render_section_header(
+                                        "Career paths",
+                                        "Guided sequences of skill tracks toward a role.",
+                                    ))
+                                    .children(careers),
+                            )
+                        })
+                        .when(!empty, |el| {
+                            el.child(
+                                v_flex()
+                                    .gap_3()
+                                    .child(Self::render_section_header(
+                                        "Skill tracks",
+                                        "Short, focused tracks. Finish one to earn its skill.",
+                                    ))
+                                    .children(tracks),
+                            )
+                        }),
                 ),
             )
     }

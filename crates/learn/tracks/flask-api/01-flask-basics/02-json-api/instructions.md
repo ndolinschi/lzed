@@ -1,0 +1,2 @@
+- Add `GET /tasks` that returns `{"tasks": tasks}`.
+- Add `GET /tasks/<int:task_id>` that returns the task with that `id`, or `{"error": "not found"}` with status `404`.

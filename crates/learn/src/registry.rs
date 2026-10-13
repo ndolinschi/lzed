@@ -36,11 +36,15 @@ pub(crate) fn write_runner(path: &Path) -> Result<()> {
 /// Write bundled sample tracks into `<home>/.tracks/` (refreshed every launch).
 pub fn install_bundled_tracks(home: &Path) -> Result<()> {
     let dir = tracks_dir(home);
+    let careers = crate::career::careers_dir(home);
     for (path, contents) in crate::bundled::BUNDLED_FILES {
-        let Some(rel) = path.strip_prefix("tracks/") else {
+        let dst = if let Some(rel) = path.strip_prefix("tracks/") {
+            dir.join(rel)
+        } else if let Some(rel) = path.strip_prefix("careers/") {
+            careers.join(rel)
+        } else {
             continue;
         };
-        let dst = dir.join(rel);
         if let Some(parent) = dst.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -86,6 +90,30 @@ pub struct TrackSummary {
     pub percent: u32,
     pub xp: u32,
     pub last_opened: Option<u64>,
+    pub skill_earned_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EarnedSkill {
+    pub skill: String,
+    pub track_title: String,
+    pub earned_at: u64,
+}
+
+/// Skills earned across all installed tracks, oldest first.
+pub fn earned_skills(tracks: &[TrackSummary]) -> Vec<EarnedSkill> {
+    let mut skills = tracks
+        .iter()
+        .filter_map(|t| {
+            Some(EarnedSkill {
+                skill: t.track.manifest.skill.clone()?,
+                track_title: t.track.manifest.title.clone(),
+                earned_at: t.skill_earned_at?,
+            })
+        })
+        .collect::<Vec<_>>();
+    skills.sort_by_key(|s| s.earned_at);
+    skills
 }
 
 /// List installed tracks with their progress, most recently opened first.
@@ -109,6 +137,7 @@ pub fn installed_tracks(home: &Path) -> Vec<TrackSummary> {
                 percent: progress.percent(&track),
                 xp: progress.total_xp(),
                 last_opened: progress.last_opened,
+                skill_earned_at: progress.skill_earned_at,
                 workspace_dir,
                 track,
             }
@@ -131,8 +160,11 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         install_bundled_tracks(home.path()).unwrap();
         let tracks = installed_tracks(home.path());
-        assert_eq!(tracks.len(), 1);
-        let s = &tracks[0];
+        assert_eq!(tracks.len(), 4);
+        let s = tracks
+            .iter()
+            .find(|t| t.track.id() == "intro-to-python")
+            .unwrap();
         assert_eq!(s.track.id(), "intro-to-python");
         assert_eq!(s.percent, 0);
         assert_eq!(s.workspace_dir, home.path().join("intro-to-python"));
@@ -143,9 +175,16 @@ mod tests {
         p.mark_opened("hello-python");
         p.record_submission("hello-python", true, 50, 30);
         ws.save_progress(&p).unwrap();
-        let s = &installed_tracks(home.path())[0];
+        let all = installed_tracks(home.path());
+        let s = &all[0];
+        assert_eq!(
+            s.track.id(),
+            "intro-to-python",
+            "most recently opened first"
+        );
         assert_eq!((s.percent, s.xp), (25, 50));
         assert!(s.last_opened.is_some());
+        assert!(earned_skills(&all).is_empty());
     }
 
     #[test]

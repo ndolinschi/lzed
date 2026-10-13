@@ -9831,16 +9831,20 @@ dependencies = [
 name = "learn_ui"
 version = "0.1.0"
 dependencies = [
+ "agent_ui",
  "anyhow",
  "gpui",
+ "language_model",
  "learn",
  "log",
  "markdown",
  "project",
+ "project_panel",
  "task",
  "ui",
  "util",
  "workspace",
+ "zed_actions",
 ]
 
 [[package]]

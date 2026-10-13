@@ -2,16 +2,20 @@
 //! exercise runner contract. Contains no UI code.
 
 mod bundled;
+pub mod career;
 pub mod progress;
 pub mod registry;
 pub mod runner;
 pub mod track;
 pub mod workspace;
 
+pub use career::{Career, installed_careers};
 pub use progress::{ExerciseProgress, ExerciseStatus, Progress};
-pub use registry::{TrackSummary, install_bundled_tracks, installed_tracks, learn_home};
+pub use registry::{
+    EarnedSkill, TrackSummary, earned_skills, install_bundled_tracks, installed_tracks, learn_home,
+};
 pub use runner::{CheckOutcome, CheckResult, RunnerError};
-pub use track::{Chapter, Exercise, Track, load_track};
+pub use track::{Chapter, Exercise, Layout, Track, load_track};
 pub use workspace::{LEARN_DIR, TrackWorkspace};
 
 /// Seconds since the unix epoch.

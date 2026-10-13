@@ -1,0 +1,6 @@
+id = "claude-code"
+title = "Claude Code"
+version = "1.0.0"
+language = "markdown"
+description = "Work effectively with an AI coding agent: project memory files and good delegation habits."
+skill = "AI-assisted development"

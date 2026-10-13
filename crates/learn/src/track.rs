@@ -13,6 +13,9 @@ pub struct TrackManifest {
     pub language: String,
     #[serde(default)]
     pub description: String,
+    /// Skill awarded when every exercise of the track is passed.
+    #[serde(default)]
+    pub skill: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -37,6 +40,20 @@ pub struct ExerciseManifest {
     /// XP deducted from the award for each hint revealed.
     #[serde(default = "default_hint_cost")]
     pub hint_xp_cost: u32,
+    /// Workspace layout while this exercise is selected.
+    #[serde(default)]
+    pub layout: Layout,
+}
+
+/// How the workspace is arranged for an exercise.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Layout {
+    /// Only the Learn panel and the exercise file: the Project Panel is hidden.
+    #[default]
+    Focused,
+    /// Multi-file / freestyle work: the Project Panel is shown.
+    Project,
 }
 
 fn default_language() -> String {
@@ -84,6 +101,18 @@ impl Exercise {
     pub fn id(&self) -> &str {
         &self.manifest.id
     }
+    /// Name of a variant source file (`starter`, `solution`) using the
+    /// learner file's extension, e.g. `starter.rs` for `main.rs`.
+    pub fn variant_file(&self, stem: &str) -> String {
+        match Path::new(&self.manifest.file)
+            .extension()
+            .and_then(|e| e.to_str())
+        {
+            Some(ext) => format!("{stem}.{ext}"),
+            None => format!("{stem}.py"),
+        }
+    }
+
     /// Path of the learner's file relative to the workspace root.
     pub fn user_file(&self) -> PathBuf {
         self.rel_dir.join(&self.manifest.file)
@@ -246,6 +275,12 @@ mod tests {
         assert_eq!(e.file, "script.py");
         assert_eq!(e.xp, 100);
         assert_eq!(e.kind, "coding");
+        assert_eq!(e.layout, Layout::Focused);
+        let e = parse_exercise_manifest(
+            "id = \"e\"\ntitle = \"E\"\nfile = \"main.rs\"\nlayout = \"project\"",
+        )
+        .unwrap();
+        assert_eq!(e.layout, Layout::Project);
         assert!(parse_exercise_manifest("title = \"no id\"").is_err());
     }
 

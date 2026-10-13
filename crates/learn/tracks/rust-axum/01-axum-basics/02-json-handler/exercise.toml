@@ -1,0 +1,7 @@
+id = "axum-json-handler"
+title = "JSON In, JSON Out"
+xp = 150
+kind = "static"
+language = "rust"
+file = "main.rs"
+layout = "project"

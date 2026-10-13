@@ -1,0 +1,3 @@
+- Add a `# ` title and a `## Project` section with at least one sentence.
+- Add a `## Commands` section with the build and test commands in a code block (include `cargo test`).
+- Add a `## Conventions` section with at least two bullet points.
