@@ -298,6 +298,16 @@ impl AgentTool for ReadFileTool {
                     anyhow!("Failed to convert {} to absolute path", input.path)
                 }).map_err(tool_content_err)?;
 
+            // Prevent leaking solutions in LearnZed track workspaces
+            let path_str = abs_path.to_string_lossy();
+            if (path_str.contains("/.learn/track/") || path_str.contains("\\.learn\\track\\"))
+                && path_str.contains("solution")
+            {
+                return Err(tool_content_err(anyhow!(
+                    "Access denied: Reference solutions in LearnZed tracks cannot be read by the AI tutor."
+                )));
+            }
+
             // Check settings exclusions synchronously
             project.read_with(cx, |_project, cx| {
                 let global_settings = WorktreeSettings::get_global(cx);

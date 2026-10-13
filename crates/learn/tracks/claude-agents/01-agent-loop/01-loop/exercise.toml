@@ -1,0 +1,6 @@
+id = "agent-loop"
+title = "Write the Agent Loop"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

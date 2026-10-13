@@ -86,3 +86,20 @@ M4 Learn panel (AC3)
 M5 Runner + check integration (AC4)
 M6 Sample track (AC5) + end-to-end manual test script
 M7 Polish: XP, hints, reset, next, status icons
+
+## Approved additions (2026-10-13, user-approved scope extension)
+A1 Career paths: `careers/<id>/career.toml` (id, title, description, tracks = [ordered track ids])
+   groups skill tracks into a path (e.g. Python Backend Developer = Intro to Python → Flask API).
+   The picker shows "Career paths" and "Skill tracks" sections.
+A2 Skill tracks & earned skills: `track.toml` gets `skill = "<name>"`; passing every exercise
+   records `skill_earned_at` in progress.json; earned skills are shown in the picker profile row,
+   on track cards and in the Learn panel. Sample skill tracks: Python (existing), Flask API
+   (python checker with Flask test client), Rust Axum (static source checks, no toolchain
+   download), Claude Code (CLAUDE.md memory file + quiz, checked statically).
+A3 AI integration: "Ask AI" in the exercise view opens Zed's agent panel with a prefilled tutor
+   prompt (exercise context, instructions, learner code, last failed checks; explicitly no full
+   solution, solution files are never included). Without an authenticated LLM provider an inline
+   "Connect an AI tutor" card opens agent settings and points to external agents (ACP: Claude
+   Code, Codex, Gemini CLI).
+A4 Exercise layouts: `exercise.toml` `layout = "focused" | "project"` (default focused).
+   Focused hides the Project Panel's dock; project reveals it. Users can still toggle manually.

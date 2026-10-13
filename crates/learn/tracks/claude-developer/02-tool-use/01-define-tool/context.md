@@ -1,0 +1,1 @@
+You give Claude tools through the `tools` request parameter. Each tool has a `name`, a `description` and an `input_schema`, which is a **JSON Schema** object describing the arguments. A detailed description is the most important factor in getting good tool use.

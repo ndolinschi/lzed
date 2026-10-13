@@ -1,0 +1,6 @@
+id = "mcp-config"
+title = "Add an MCP Server"
+xp = 100
+kind = "static"
+language = "json"
+file = ".mcp.json"

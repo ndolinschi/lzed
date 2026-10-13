@@ -1,0 +1,4 @@
+id = "ai-engineer-claude"
+title = "AI Engineer (Claude)"
+description = "Design, build and ship AI features on Claude: architecture, prompting, the API, agents, Claude Code, and reviewing AI-written code."
+tracks = ["claude-architect-foundations", "prompt-engineering", "claude-developer", "claude-agents", "claude-code", "review-ai-code"]

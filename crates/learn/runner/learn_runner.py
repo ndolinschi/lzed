@@ -111,6 +111,9 @@ def markdown_sections(src):
 
 
 def run(args):
+    if getattr(args, "kind", None) == "review":
+        print("This is a code review exercise. Write `L<line>: comment` lines in review.md, then press Submit.")
+        return 0
     if args.language != "python":
         print(f"This is a {args.language} exercise that is checked statically. Press Submit to check it.")
         return 0
@@ -128,7 +131,52 @@ def run(args):
     return 0
 
 
+REVIEW_LINE = re.compile(r"^\s*(?:[-*]\s*)?[Ll](\d+)(?:\s*-\s*(\d+))?\s*:\s*(.*)$")
+
+
+def parse_review(src):
+    """`L12: comment` / `L10-12: comment` lines -> [(first, last, comment)]."""
+    out = []
+    for line in src.splitlines():
+        m = REVIEW_LINE.match(line)
+        if m:
+            a = int(m.group(1))
+            b = int(m.group(2) or a)
+            out.append((min(a, b), max(a, b), m.group(3).strip()))
+    return out
+
+
+def check_review(args, user_src):
+    """kind = "review": every planted bug in bugs.toml must be identified."""
+    import tomllib
+
+    with open(args.bugs, "rb") as f:
+        bugs = tomllib.load(f).get("bug", [])
+    comments = parse_review(user_src)
+    checks = [{
+        "name": "review comments",
+        "passed": bool(comments),
+        "message": "" if comments else "Write at least one comment as `L12: what is wrong and why`.",
+    }]
+    for bug in bugs:
+        first, last = bug["lines"]
+        keywords = [k.lower() for k in bug["keywords"]]
+        near = [c for (a, b, c) in comments if a <= last and b >= first]
+        found = any(k in c.lower() for c in near for k in keywords)
+        if found:
+            msg = ""
+        elif near:
+            msg = f"You commented on lines {first}-{last}, but didn't name the problem. " + bug.get("hint", "")
+        else:
+            msg = "A planted bug was missed. " + bug.get("hint", "")
+        checks.append({"name": f"found: {bug['name']}", "passed": found, "message": msg.strip()})
+    passed = all(c["passed"] for c in checks)
+    return {"passed": passed, "checks": checks, "stdout": "", "stderr": ""}
+
+
 def check(args):
+    if getattr(args, "kind", None) == "review":
+        return check_review(args, _read(args.script))
     setup_src = _read(args.setup)
     user_src = _read(args.script)
     checks = []
@@ -229,6 +277,8 @@ def main():
     p.add_argument("--solution")
     p.add_argument("--check")
     p.add_argument("--language", default="python")
+    p.add_argument("--kind", default="coding")
+    p.add_argument("--bugs")
     args = p.parse_args()
     if args.mode == "run":
         sys.exit(run(args))

@@ -1,0 +1,6 @@
+id = "review-ai-code"
+title = "Review AI-Generated Code"
+version = "1.0.0"
+language = "markdown"
+description = "AI writes code fast, and you are responsible for it. Practice finding the bugs AI assistants plant in plausible-looking code."
+skill = "AI code review"

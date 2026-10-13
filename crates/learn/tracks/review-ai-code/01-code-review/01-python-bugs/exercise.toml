@@ -1,0 +1,7 @@
+id = "python-bugs"
+title = "Review a Python Helper"
+xp = 100
+kind = "review"
+language = "markdown"
+file = "review.md"
+review_file = "stats.py"

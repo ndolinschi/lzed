@@ -2,16 +2,19 @@
 Current milestone: MVP M0–M7 implemented on learn/main; stretch items open.
 
 State
-- `cargo test -p learn`: 13/13 pass (parsing, progress, materialization, registry, runner incl. real python+numpy, timeout).
-- `cargo check`/`clippy -p learn -p learn_ui --tests`: clean. Dev build `cargo build -p zed` OK → target/debug/learnzed.
-- Manual E2E done on box (PLAN.md), screenshots in .orchestration/screenshots/.
+- `cargo test -p learn`: 17/17 pass (includes materialize_creates_agent_rules).
+- `cargo test -p learn_ui`: 4/4 pass.
+- AI-1 implemented: `TrackWorkspace::materialize` creates `.rules` with Socratic tutor persona, strict no-leak policy against `.learn/track/**/solution.*`, workspace layout, `.learn/progress.json` schema, and check result guidance.
+- AI-2 implemented: Built-in agent tools (`get_current_exercise`, `run_check`, `get_hint`, `get_progress`), registered in `Thread::add_default_tools` and allowed in default profiles. Defensive read restriction added to `read_file_tool` to block solution leaks. Unit tests pass.
+- AI-3 implemented: Builtin learning skills (`exercise`, `check`, `hint`, `explain-error`) registered in `agent_skills::builtin_skills()`, recognized by message editor slash commands and dispatching to agent with pedagogical instructions. Unit tests pass (80/80 in `agent_skills`).
 
 In-flight: none.
 
 Next 3 actions
-1. D9: auto-trust bundled track workspaces (avoid Restricted Mode prompt) — needs orchestrator OK.
-2. gpui tests for TrackPicker/LearnPanel (TestAppContext) — M7-03.
-3. Stretch: git-URL import (M3-03), REPL runner (M5-04), packaging (M7-04).
+1. AI-4: "Generate track" / "Generate skill" via AI interview in Zed agent chat.
+2. Dev build `cargo build -p zed` (debug profile).
+3. Screenshots via scrot (DISPLAY=:5) to /workspace/learnzed-shots/agy-*.png.
+
 
 Known risks / notes
 - Bin renamed `learnzed` (Zed asserts bin name == APP_NAME); script/bundle-*, zed-local still reference `zed`.

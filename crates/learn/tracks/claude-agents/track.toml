@@ -1,0 +1,6 @@
+id = "claude-agents"
+title = "Claude Agents"
+version = "1.0.0"
+language = "python"
+description = "Build agents with Claude: the tool-use loop, agent patterns, and Claude Code subagents."
+skill = "AI agent development"

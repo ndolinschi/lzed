@@ -163,11 +163,11 @@ if (user) {
   users = [user].concat(users.filter((u) => u !== user));
 }
 
-let buildArgs = ["build"];
-let zedBinary = "target/debug/zed";
+let buildArgs = ["build", "-p", "zed"];
+let zedBinary = "target/debug/learnzed";
 if (isReleaseMode) {
   buildArgs.push("--release");
-  zedBinary = "target/release/zed";
+  zedBinary = "target/release/learnzed";
 }
 
 try {

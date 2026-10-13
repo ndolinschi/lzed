@@ -126,7 +126,13 @@ impl Progress {
             && track.exercises().count() > 0
             && self.passed_count(track) == track.exercises().count()
         {
-            self.skill_earned_at = Some(now_unix());
+            let timestamp = self
+                .exercises
+                .values()
+                .filter_map(|e| e.completed_at)
+                .max()
+                .unwrap_or_else(now_unix);
+            self.skill_earned_at = Some(timestamp);
             return true;
         }
         false
