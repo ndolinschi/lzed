@@ -1,0 +1,6 @@
+id = "define-tool"
+title = "Define a Tool"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

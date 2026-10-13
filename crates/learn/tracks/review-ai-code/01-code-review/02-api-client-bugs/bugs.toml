@@ -1,0 +1,17 @@
+[[bug]]
+name = "hardcoded API key"
+lines = [3, 3]
+keywords = ["hardcoded", "hard-coded", "secret", "environment", "env"]
+hint = "Never commit API keys."
+
+[[bug]]
+name = "system prompt as message"
+lines = [8, 8]
+keywords = ["system"]
+hint = "The Messages API has a top-level `system` parameter."
+
+[[bug]]
+name = "tool_result without tool_use_id"
+lines = [21, 21]
+keywords = ["tool_use_id", "id"]
+hint = "Each tool_result must reference the tool_use block id."

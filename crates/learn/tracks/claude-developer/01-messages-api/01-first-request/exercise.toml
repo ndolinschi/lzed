@@ -1,0 +1,6 @@
+id = "first-request"
+title = "Build a Messages Request"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

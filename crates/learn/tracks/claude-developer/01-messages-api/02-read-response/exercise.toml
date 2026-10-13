@@ -1,0 +1,6 @@
+id = "read-response"
+title = "Read a Response and Continue"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

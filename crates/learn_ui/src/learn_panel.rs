@@ -165,14 +165,35 @@ impl LearnPanel {
             exercise.context.trim(),
             exercise.instructions.trim()
         );
+        if exercise.is_review() {
+            source.push_str(&format!(
+                "\n#### How to review\n\nOpen `{}` and find the planted bugs. In `{}`, write one \
+                 line per finding: `L12: what is wrong and why` (ranges like `L10-12:` work too). \
+                 Submit checks that each bug was spotted on the right line and named.\n",
+                exercise
+                    .manifest
+                    .review_file
+                    .as_deref()
+                    .unwrap_or("the code"),
+                exercise.manifest.file,
+            ));
+        }
         for (ix, hint) in exercise.hints.iter().take(hints_used).enumerate() {
             source.push_str(&format!("\n#### Hint {}\n\n{}\n", ix + 1, hint));
         }
-        let languages = self.project.as_ref().map(|p| p.read(cx).languages().clone());
+        let languages = self
+            .project
+            .as_ref()
+            .map(|p| p.read(cx).languages().clone());
         self.markdown = Some(cx.new(|cx| Markdown::new(source.into(), languages, None, cx)));
     }
 
-    pub(crate) fn select_exercise(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn select_exercise(
+        &mut self,
+        id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let (Some(track), Some(exercise)) = (self.track.clone(), self.exercise(id)) else {
             return;
         };
@@ -186,21 +207,24 @@ impl LearnPanel {
         self.rebuild_markdown(cx);
         self.show_ai_connect = false;
         let path = track.user_file(&exercise);
+        let reviewed = exercise.review_file().map(|f| track.root.join(f));
         let layout = exercise.manifest.layout;
         self.workspace
             .update(cx, |workspace, cx| {
                 apply_layout(workspace, layout, window, cx);
-                workspace
-                    .open_abs_path(
-                        path,
-                        OpenOptions {
-                            visible: Some(OpenVisible::None),
-                            ..Default::default()
-                        },
-                        window,
-                        cx,
-                    )
-                    .detach_and_log_err(cx);
+                for path in reviewed.into_iter().chain(Some(path)) {
+                    workspace
+                        .open_abs_path(
+                            path,
+                            OpenOptions {
+                                visible: Some(OpenVisible::None),
+                                ..Default::default()
+                            },
+                            window,
+                            cx,
+                        )
+                        .detach_and_log_err(cx);
+                }
             })
             .ok();
         cx.notify();
@@ -921,7 +945,10 @@ impl Render for LearnPanel {
                             .child(ProgressBar::new("learn-progress", percent as f32, 100., cx))
                             .when_some(track.track.manifest.skill.clone(), |el, skill| {
                                 let earned = self.progress.skill_earned_at.is_some()
-                                    || self.track.as_ref().map_or(false, |t| self.progress.percent(&t.track) == 100);
+                                    || self
+                                        .track
+                                        .as_ref()
+                                        .map_or(false, |t| self.progress.percent(&t.track) == 100);
                                 el.child(
                                     h_flex()
                                         .gap_1()

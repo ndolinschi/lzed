@@ -1,0 +1,6 @@
+id = "xml-prompt"
+title = "Write a Structured Prompt"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "prompt.md"

@@ -1,0 +1,17 @@
+[[bug]]
+name = "off-by-one window loop"
+lines = [4, 4]
+keywords = ["off-by-one", "off by one", "+ 1", "+1", "last window", "misses"]
+hint = "Look at the range() bound in moving_average."
+
+[[bug]]
+name = "mutable default argument"
+lines = [10, 10]
+keywords = ["mutable", "default", "shared"]
+hint = "A default dict is created once and shared across calls."
+
+[[bug]]
+name = "division by zero on empty input"
+lines = [17, 17]
+keywords = ["empty", "zero", "zerodivision"]
+hint = "What does mean([]) do?"

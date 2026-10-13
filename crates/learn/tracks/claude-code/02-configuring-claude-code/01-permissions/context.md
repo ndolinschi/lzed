@@ -1,0 +1,1 @@
+Claude Code reads project settings from `.claude/settings.json`, which you can commit to share with your team. The `permissions` object holds `allow` and `deny` lists of rules. Examples: `"Bash(npm run test:*)"` allows any command starting with `npm run test`, and `"Read(./.env)"` in `deny` blocks reading secrets. Deny rules take precedence over allow rules.
