@@ -10,12 +10,19 @@ State
 - AI-3 implemented: Builtin learning skills (`exercise`, `check`, `hint`, `explain-error`) registered in `agent_skills::builtin_skills()`, recognized by message editor slash commands and dispatching to agent with pedagogical instructions. Unit tests pass (80/80 in `agent_skills`).
 - AI-4 implemented: "Generate track" and "Generate skill" buttons added to track picker, triggering AI interview in agent chat (`/generate-track`, `/generate-skill`). `GenerateTrackTool` writes `track.toml`, chapters, and exercises, validates schema with `learn::load_track`, tests solution against `check.py` with runner, and registers track in picker. Unit tests pass.
 
+Screenshots captured (DISPLAY=:5, /workspace/learnzed-shots/):
+- `agy-01-picker.png`: Track Picker showing "Generate Track", "Generate Skill", "Import Track", user profile with earned skills, and career paths.
+- `agy-02-learn-panel.png`: Learn panel with full exercise view (instructions, code, Run code, Hint, Ask AI).
+- `agy-03-ask-ai.png`: Ask AI in Agent panel alongside editor.
+- `agy-04-slash-commands.png`: Slash commands popup showing `/exercise`, `/check`, `/hint`, `/explain-error`, `/generate-track`, `/generate-skill`.
+- `agy-05-generate-track.png`: `/generate-track` interactive prompt in Agent panel.
+
 In-flight: none.
 
 Next 3 actions
-1. Build debug profile (`cargo build -p zed`).
-2. Run on DISPLAY=:5 and take scrot screenshots to `/workspace/learnzed-shots/agy-*.png`.
-3. Update HANDOFF.md with screenshot paths.
+1. User review of AI-1 through AI-4.
+2. AI-5: Review exercises (kind="review" with planted bugs) - in review on task/claude-tracks.
+3. TR-1: Claude AI Engineering tracks - in review on task/claude-tracks.
 
 
 Known risks / notes
