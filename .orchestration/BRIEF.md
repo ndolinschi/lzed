@@ -1,9 +1,5 @@
 # LearnZed — Project Brief
 
-> NOTE (bootstrap agent): the tail of "Engineering constraints" was truncated in the
-> transcript available to the bootstrap agent (marked [TRUNCATED] below). The user
-> should paste the remainder; do not invent it.
-
 ## Vision
 Fork of Zed (repo: lzed) turned into a DataCamp-style interactive learning app.
 The user picks a learning track instead of a project, works through lessons and
@@ -73,4 +69,20 @@ collab features, AI tutor (keep Zed's assistant untouched but optional).
 
 ## Engineering constraints
 - Rust + GPUI, follow existing Zed crate/idiom patterns; new code in new crates
-  where p[TRUNCATED]
+  where possible (e.g. crates/learn, crates/learn_ui) to keep upstream merges sane.
+- Separate app identity and data dirs from stock Zed (app name, config dir,
+  db path) so it never touches a user's real Zed settings or state.
+- Keep GPL licensing of the fork intact.
+- Every change must pass `cargo check` for touched crates; add unit tests for
+  track parsing, progress persistence, and runner JSON parsing.
+
+## Milestones
+M0 Recon: build the fork, map startup flow, picker, dock/panel, markdown,
+   terminal/task, repl, paths crates → write .orchestration/CODEMAP.md
+M1 App identity + data dir separation
+M2 crates/learn: track format parsing, workspace materialization, progress.json
+M3 Track picker on launch (AC1)
+M4 Learn panel (AC3)
+M5 Runner + check integration (AC4)
+M6 Sample track (AC5) + end-to-end manual test script
+M7 Polish: XP, hints, reset, next, status icons

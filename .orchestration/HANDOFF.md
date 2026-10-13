@@ -3,7 +3,6 @@ Current milestone: M0 DONE -> start M1.
 Branch: learn/main (integration). No code changes yet; only .orchestration/.
 
 State
-- BRIEF.md and ORCHESTRATOR_PROMPT.md are PARTIALLY TRUNCATED (see notes inside). Ask the user to paste the missing text (end of Engineering constraints; head of the orchestrator prompt incl. steps 1-2).
 - CODEMAP.md verified by rg against main.
 - DECISIONS D2-D5 are "proposed".
 
