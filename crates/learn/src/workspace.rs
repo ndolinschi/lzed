@@ -87,6 +87,10 @@ impl TrackWorkspace {
 
         let this = Self::open(workspace_root)?;
         crate::registry::write_runner(&this.runner_script())?;
+        let rules_path = this.rules_path();
+        if !rules_path.exists() {
+            this.write_rules()?;
+        }
         for exercise in this.track.exercises() {
             let dst = this.user_file(exercise);
             if !dst.exists() {
@@ -129,6 +133,68 @@ impl TrackWorkspace {
 
     pub fn runs_dir(&self) -> PathBuf {
         Self::learn_dir(&self.root).join("runs")
+    }
+
+    pub fn rules_path(&self) -> PathBuf {
+        self.root.join(".rules")
+    }
+
+    pub fn generate_rules_content(&self) -> String {
+        format!(
+            r#"# LearnZed AI Tutor Rules
+
+You are the LearnZed AI Tutor — an encouraging, patient, and knowledgeable coding mentor.
+Your goal is to help the learner understand concepts deeply and solve exercises on their own.
+
+## Tutor Persona & Pedagogical Principles
+- Be supportive, warm, and Socratic.
+- Ask guiding questions to help the learner spot bugs and reason about logic.
+- Break down complex problems into smaller, manageable mental steps.
+- Explain "why" things work the way they do, using clear analogies and standard idioms.
+- Never write the complete solution for the learner or write code that solves the exercise directly.
+- If the learner is stuck, offer small conceptual hints or suggest inspecting intermediate values.
+
+## STRICT NO-LEAK POLICY
+- Under NO circumstances should you read, inspect, quote, summarize, or reveal files located in `.learn/track/**/solution.*` or `.learn/track/**/solution.py`.
+- If the learner explicitly asks you to show the solution, refuse warmly:
+  "I'm here to help you learn and conquer this challenge yourself! Let's work through it step by step instead."
+- Never reference the existence or contents of reference solutions.
+
+## Workspace & Exercise Layout
+- This directory is a LearnZed track workspace for: {title} ({id}).
+- Exercise code files (e.g. `01-basics/01-first-steps/script.py`) are where the learner writes their code.
+- `.learn/track/` contains track manifests and test specifications.
+- `.learn/runs/` contains historical execution and check logs.
+- `.learn/progress.json` tracks learner achievements and exercise statuses.
+
+## Understanding `.learn/progress.json`
+- `exercises`: Record of exercise progress keyed by exercise ID:
+  - `status`: `"unlocked"` (available to work on) or `"passed"` (successfully completed).
+  - `attempts`: Number of times the learner has run verification checks.
+  - `hints_revealed`: Number of hints requested.
+  - `completed_at`: Unix timestamp of completion.
+- `xp`: Total experience points accumulated by the learner.
+- `earned_skills`: Skill badges earned after completing all exercises in a track.
+
+## Interpreting Check Results
+- When verification checks run, the runner executes test assertions against the user's code.
+- Check outputs provide:
+  - `passed`: `true` when all requirements and assertions succeed, `false` otherwise.
+  - `summary`: High-level test result statement.
+  - `feedback`: Targeted hints highlighting what failed and why.
+  - `stdout` / `stderr`: Any program output or stack traces.
+- Help the learner parse error tracebacks: identify the error type (e.g. `IndexError`, `TypeError`, `SyntaxError`), locate the relevant line, and guide them to understand what caused it.
+"#,
+            title = self.track.manifest.title,
+            id = self.track.manifest.id,
+        )
+    }
+
+    pub fn write_rules(&self) -> Result<()> {
+        let rules_path = self.rules_path();
+        let content = self.generate_rules_content();
+        std::fs::write(&rules_path, content)
+            .with_context(|| format!("writing {}", rules_path.display()))
     }
 
     pub fn user_file(&self, exercise: &Exercise) -> PathBuf {
@@ -218,5 +284,22 @@ mod tests {
         other.manifest.id = "other".into();
         assert!(TrackWorkspace::materialize(&other, dir.path()).is_err());
     }
+
+    #[test]
+    fn materialize_creates_agent_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("intro-to-python");
+        let track = sample();
+        let ws = TrackWorkspace::materialize(&track, &root).unwrap();
+        let rules_path = ws.rules_path();
+        assert!(rules_path.is_file());
+        let rules = std::fs::read_to_string(&rules_path).unwrap();
+        assert!(rules.contains("LearnZed AI Tutor Rules"));
+        assert!(rules.contains("STRICT NO-LEAK POLICY"));
+        assert!(rules.contains(".learn/track/**/solution"));
+        assert!(rules.contains(".learn/progress.json"));
+        assert!(rules.contains("Intro to Python"));
+    }
 }
+
 

@@ -2,18 +2,16 @@
 Current milestone: MVP M0–M7 implemented on learn/main; stretch items open.
 
 State
-- `cargo test -p learn`: 16/16 pass.
-- `cargo test -p learn_ui`: 4/4 pass (TrackPicker discovery, retroactive skills, materialization, LearnPanel selection/hints/reset).
-- `cargo check`/`clippy -p learn -p learn_ui --tests`: clean. Dev build `cargo build -p zed` OK → target/debug/learnzed.
-- Retroactive skills bug resolved: already-completed tracks derive/award skills upon loading progress or installed tracks.
-- Manual E2E done on box (PLAN.md), screenshots in .orchestration/screenshots/.
+- `cargo test -p learn`: 17/17 pass (includes materialize_creates_agent_rules).
+- `cargo test -p learn_ui`: 4/4 pass.
+- AI-1 implemented: `TrackWorkspace::materialize` creates `.rules` with Socratic tutor persona, strict no-leak policy against `.learn/track/**/solution.*`, workspace layout, `.learn/progress.json` schema, and check result guidance.
 
 In-flight: none.
 
 Next 3 actions
-1. AI-1: Generate `.rules` (agent rules file) into each track workspace on materialize.
-2. AI-2: Agent tools for learning (context server / MCP `learnzed` or built-in tools).
-3. AI-3: Slash commands / prompt library entries in agent chat (/exercise, /check, /hint, /explain-error).
+1. AI-2: Agent tools for learning (context server / MCP `learnzed` or built-in tools).
+2. AI-3: Slash commands / prompt library entries in agent chat (/exercise, /check, /hint, /explain-error).
+3. Dev build & screenshots via scrot.
 
 
 Known risks / notes
