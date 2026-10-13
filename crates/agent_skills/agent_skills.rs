@@ -697,6 +697,8 @@ const EXERCISE_SKILL_CONTENT: &str = include_str!("builtin/exercise/SKILL.md");
 const CHECK_SKILL_CONTENT: &str = include_str!("builtin/check/SKILL.md");
 const HINT_SKILL_CONTENT: &str = include_str!("builtin/hint/SKILL.md");
 const EXPLAIN_ERROR_SKILL_CONTENT: &str = include_str!("builtin/explain-error/SKILL.md");
+const GENERATE_TRACK_SKILL_CONTENT: &str = include_str!("builtin/generate-track/SKILL.md");
+const GENERATE_SKILL_SKILL_CONTENT: &str = include_str!("builtin/generate-skill/SKILL.md");
 
 /// All built-in skills as `(name, raw_content)` pairs. Used by
 /// `builtin_skill_content` to serve the full SKILL.md without disk I/O.
@@ -706,6 +708,8 @@ const BUILTIN_SKILL_ENTRIES: &[(&str, &str)] = &[
     ("check", CHECK_SKILL_CONTENT),
     ("hint", HINT_SKILL_CONTENT),
     ("explain-error", EXPLAIN_ERROR_SKILL_CONTENT),
+    ("generate-track", GENERATE_TRACK_SKILL_CONTENT),
+    ("generate-skill", GENERATE_SKILL_SKILL_CONTENT),
 ];
 
 /// Returns the set of skills that are compiled into the Zed binary.
@@ -2221,5 +2225,7 @@ description: A skill with no body content
         assert!(names.contains(&"check"));
         assert!(names.contains(&"hint"));
         assert!(names.contains(&"explain-error"));
+        assert!(names.contains(&"generate-track"));
+        assert!(names.contains(&"generate-skill"));
     }
 }

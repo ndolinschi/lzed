@@ -227,6 +227,7 @@ tools! {
     RunCheckTool,
     GetHintTool,
     GetProgressTool,
+    GenerateTrackTool,
 }
 
 /// Some built-in tools are gated behind a feature flag and only become usable

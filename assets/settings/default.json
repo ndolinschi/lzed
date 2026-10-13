@@ -1325,6 +1325,7 @@
           "run_check": true,
           "get_hint": true,
           "get_progress": true,
+          "generate_track": true,
         },
       },
       "ask": {
@@ -1351,6 +1352,7 @@
           "run_check": true,
           "get_hint": true,
           "get_progress": true,
+          "generate_track": true,
         },
       },
       "minimal": {

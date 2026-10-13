@@ -2282,6 +2282,7 @@ impl Thread {
         self.add_tool(crate::tools::learn_tools::RunCheckTool::new(self.project.clone()));
         self.add_tool(crate::tools::learn_tools::GetHintTool::new(self.project.clone()));
         self.add_tool(crate::tools::learn_tools::GetProgressTool::new(self.project.clone()));
+        self.add_tool(crate::tools::learn_tools::GenerateTrackTool::new());
     }
 
     pub fn add_tool<T: AgentTool>(&mut self, tool: T) {

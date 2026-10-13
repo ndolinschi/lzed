@@ -1,6 +1,6 @@
 use gpui::{
-    App, Context, EventEmitter, FocusHandle, Focusable, PathPromptOptions, Render, WeakEntity,
-    Window,
+    Action, App, Context, EventEmitter, FocusHandle, Focusable, PathPromptOptions, Render,
+    WeakEntity, Window,
 };
 use learn::{Career, TrackSummary, TrackWorkspace};
 use ui::{ProgressBar, TintColor, prelude::*};
@@ -86,6 +86,39 @@ impl TrackPicker {
             .ok();
         })
         .detach();
+    }
+
+    fn ai_available(cx: &App) -> bool {
+        language_model::LanguageModelRegistry::read_global(cx)
+            .default_model()
+            .is_some()
+    }
+
+    fn generate_track(&mut self, is_skill: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if !Self::ai_available(cx) {
+            self.error = Some("AI generation requires a configured language model provider. Opening Agent Settings...".into());
+            window.dispatch_action(zed_actions::agent::OpenSettings.boxed_clone(), cx);
+            cx.notify();
+            return;
+        }
+        self.error = None;
+        let prompt_text = if is_skill {
+            "/generate-skill\nPlease interview me and help generate a targeted LearnZed skill track."
+        } else {
+            "/generate-track\nPlease interview me and help generate a new LearnZed learning track."
+        };
+        let Some(workspace) = self.workspace.upgrade() else {
+            return;
+        };
+        let prompt = agent_ui::ExternalSourcePrompt::new(prompt_text);
+        workspace.update(cx, |workspace, cx| {
+            if let Some(panel) = workspace.panel::<agent_ui::AgentPanel>(cx) {
+                workspace.focus_panel::<agent_ui::AgentPanel>(window, cx);
+                panel.update(cx, |panel, cx| {
+                    panel.new_agent_thread_with_external_source_prompt(prompt, window, cx);
+                });
+            }
+        });
     }
 
     fn render_track(
@@ -424,14 +457,24 @@ impl TrackPicker {
             )
             .child(Label::new("No learning tracks installed"))
             .child(
-                Label::new("Import a track folder that contains a track.toml.")
+                Label::new("Generate a custom track with AI or import an existing track folder.")
                     .size(LabelSize::Small)
                     .color(Color::Muted),
             )
             .child(
-                Button::new("empty-add-track", "Add track")
-                    .style(ButtonStyle::Tinted(TintColor::Accent))
-                    .on_click(cx.listener(|this, _, window, cx| this.add_track(window, cx))),
+                h_flex()
+                    .gap_2()
+                    .child(
+                        Button::new("empty-generate-track", "Generate Track")
+                            .style(ButtonStyle::Tinted(TintColor::Accent))
+                            .start_icon(Icon::new(IconName::Sparkle).size(IconSize::Small))
+                            .on_click(cx.listener(|this, _, window, cx| this.generate_track(false, window, cx))),
+                    )
+                    .child(
+                        Button::new("empty-add-track", "Import Track")
+                            .style(ButtonStyle::Subtle)
+                            .on_click(cx.listener(|this, _, window, cx| this.add_track(window, cx))),
+                    ),
             )
     }
 }
@@ -497,14 +540,38 @@ impl Render for TrackPicker {
                                 )
                                 .when(!empty, |el| {
                                     el.child(
-                                        Button::new("add-track", "Add track")
-                                            .style(ButtonStyle::Subtle)
-                                            .start_icon(
-                                                Icon::new(IconName::Plus).size(IconSize::Small),
+                                        h_flex()
+                                            .gap_2()
+                                            .child(
+                                                Button::new("generate-track", "Generate Track")
+                                                    .style(ButtonStyle::Tinted(TintColor::Accent))
+                                                    .start_icon(
+                                                        Icon::new(IconName::Sparkle).size(IconSize::Small),
+                                                    )
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.generate_track(false, window, cx)
+                                                    })),
                                             )
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.add_track(window, cx)
-                                            })),
+                                            .child(
+                                                Button::new("generate-skill", "Generate Skill")
+                                                    .style(ButtonStyle::Subtle)
+                                                    .start_icon(
+                                                        Icon::new(IconName::Star).size(IconSize::Small),
+                                                    )
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.generate_track(true, window, cx)
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("add-track", "Import Track")
+                                                    .style(ButtonStyle::Subtle)
+                                                    .start_icon(
+                                                        Icon::new(IconName::Plus).size(IconSize::Small),
+                                                    )
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.add_track(window, cx)
+                                                    })),
+                                            ),
                                     )
                                 }),
                         )

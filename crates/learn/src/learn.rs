@@ -12,7 +12,8 @@ pub mod workspace;
 pub use career::{Career, installed_careers};
 pub use progress::{ExerciseProgress, ExerciseStatus, Progress};
 pub use registry::{
-    EarnedSkill, TrackSummary, earned_skills, install_bundled_tracks, installed_tracks, learn_home,
+    EarnedSkill, TrackSummary, add_track_from_folder, earned_skills, install_bundled_tracks,
+    installed_tracks, learn_home, tracks_dir,
 };
 pub use runner::{CheckOutcome, CheckResult, RunnerError};
 pub use track::{Chapter, Exercise, Layout, Track, load_track};

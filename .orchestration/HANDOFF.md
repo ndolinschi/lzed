@@ -2,18 +2,20 @@
 Current milestone: MVP M0–M7 implemented on learn/main; stretch items open.
 
 State
-- `cargo test -p learn`: 17/17 pass (includes materialize_creates_agent_rules).
+- `cargo test -p learn`: 19/19 pass (including review exercises and planted bugs).
 - `cargo test -p learn_ui`: 4/4 pass.
+- `cargo test -p agent_skills`: 80/80 pass.
 - AI-1 implemented: `TrackWorkspace::materialize` creates `.rules` with Socratic tutor persona, strict no-leak policy against `.learn/track/**/solution.*`, workspace layout, `.learn/progress.json` schema, and check result guidance.
 - AI-2 implemented: Built-in agent tools (`get_current_exercise`, `run_check`, `get_hint`, `get_progress`), registered in `Thread::add_default_tools` and allowed in default profiles. Defensive read restriction added to `read_file_tool` to block solution leaks. Unit tests pass.
 - AI-3 implemented: Builtin learning skills (`exercise`, `check`, `hint`, `explain-error`) registered in `agent_skills::builtin_skills()`, recognized by message editor slash commands and dispatching to agent with pedagogical instructions. Unit tests pass (80/80 in `agent_skills`).
+- AI-4 implemented: "Generate track" and "Generate skill" buttons added to track picker, triggering AI interview in agent chat (`/generate-track`, `/generate-skill`). `GenerateTrackTool` writes `track.toml`, chapters, and exercises, validates schema with `learn::load_track`, tests solution against `check.py` with runner, and registers track in picker. Unit tests pass.
 
 In-flight: none.
 
 Next 3 actions
-1. AI-4: "Generate track" / "Generate skill" via AI interview in Zed agent chat.
-2. Dev build `cargo build -p zed` (debug profile).
-3. Screenshots via scrot (DISPLAY=:5) to /workspace/learnzed-shots/agy-*.png.
+1. Build debug profile (`cargo build -p zed`).
+2. Run on DISPLAY=:5 and take scrot screenshots to `/workspace/learnzed-shots/agy-*.png`.
+3. Update HANDOFF.md with screenshot paths.
 
 
 Known risks / notes

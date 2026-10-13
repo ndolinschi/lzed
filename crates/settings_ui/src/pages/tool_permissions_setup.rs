@@ -1431,6 +1431,7 @@ mod tests {
             "run_check",
             "get_hint",
             "get_progress",
+            "generate_track",
         ];
 
         let tool_info_ids: Vec<&str> = TOOLS.iter().map(|t| t.id).collect();
