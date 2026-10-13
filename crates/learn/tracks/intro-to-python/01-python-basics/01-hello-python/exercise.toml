@@ -1,0 +1,6 @@
+id = "hello-python"
+title = "Hello Python!"
+xp = 50
+kind = "coding"
+language = "python"
+file = "script.py"

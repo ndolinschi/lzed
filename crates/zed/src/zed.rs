@@ -809,6 +809,15 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
             initialize_agent_panel(workspace_handle.clone(), cx.clone()).map(|r| r.log_err()),
         );
 
+        // LEARNZED: added after the other panels so it becomes the active left-dock
+        // panel (over the Project Panel) when the workspace is a learning track.
+        add_panel_when_ready(
+            learn_ui::LearnPanel::load(workspace_handle.clone(), cx.clone()),
+            workspace_handle.clone(),
+            cx.clone(),
+        )
+        .await;
+
         workspace_handle.update(cx, |workspace, cx| {
             workspace.finish_dock_restoration(cx);
         })?;

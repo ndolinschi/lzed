@@ -116,6 +116,8 @@ members = [
     "crates/inspector_ui",
     "crates/install_cli",
     "crates/journal",
+    "crates/learn",
+    "crates/learn_ui",
     "crates/json_schema_store",
     "crates/keymap_editor",
     "crates/language",
@@ -388,6 +390,8 @@ input_latency_ui = { path = "crates/input_latency_ui" }
 inspector_ui = { path = "crates/inspector_ui" }
 install_cli = { path = "crates/install_cli" }
 journal = { path = "crates/journal" }
+learn = { path = "crates/learn" }
+learn_ui = { path = "crates/learn_ui" }
 json_schema_store = { path = "crates/json_schema_store" }
 keymap_editor = { path = "crates/keymap_editor" }
 language = { path = "crates/language" }

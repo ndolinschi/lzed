@@ -1,0 +1,6 @@
+id = "numpy-arrays"
+title = "Your First NumPy Array"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

@@ -1,0 +1,5 @@
+id = "intro-to-python"
+title = "Intro to Python"
+version = "1.0.0"
+language = "python"
+description = "Learn Python basics and get started with NumPy for data science."

@@ -1,0 +1,3 @@
+- Import `numpy` as `np`.
+- Create a 2D NumPy array from `baseball` and store it as `np_baseball`.
+- Print the shape of `np_baseball` using its `.shape` attribute.
