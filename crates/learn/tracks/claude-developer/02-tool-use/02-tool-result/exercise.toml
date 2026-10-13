@@ -1,0 +1,6 @@
+id = "tool-result"
+title = "Return a Tool Result"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

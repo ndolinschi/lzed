@@ -1,0 +1,6 @@
+id = "cost-estimate"
+title = "Estimate Request Cost"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

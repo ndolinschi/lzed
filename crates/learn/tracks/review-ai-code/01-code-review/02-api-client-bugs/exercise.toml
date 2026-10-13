@@ -1,0 +1,7 @@
+id = "api-client-bugs"
+title = "Review an AI-Written Claude Client"
+xp = 100
+kind = "review"
+language = "markdown"
+file = "review.md"
+review_file = "assistant.py"

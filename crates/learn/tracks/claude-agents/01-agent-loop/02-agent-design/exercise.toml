@@ -1,0 +1,6 @@
+id = "agent-design-quiz"
+title = "Designing Reliable Agents"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "answers.md"

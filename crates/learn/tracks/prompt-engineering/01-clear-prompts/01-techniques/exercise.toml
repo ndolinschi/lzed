@@ -1,0 +1,6 @@
+id = "techniques-quiz"
+title = "Prompting Techniques"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "answers.md"

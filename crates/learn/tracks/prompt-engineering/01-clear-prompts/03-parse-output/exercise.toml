@@ -1,0 +1,6 @@
+id = "parse-output"
+title = "Fill and Parse a Prompt"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

@@ -96,6 +96,12 @@ impl TrackWorkspace {
             if !dst.exists() {
                 this.write_starter(exercise)?;
             }
+            if let Some(reviewed) = exercise.review_file() {
+                let dst = this.root.join(&reviewed);
+                if !dst.exists() {
+                    this.write_reviewed(exercise)?;
+                }
+            }
         }
         Ok(this)
     }
@@ -217,7 +223,20 @@ Your goal is to help the learner understand concepts deeply and solve exercises 
 
     /// Restore the starter code for an exercise.
     pub fn reset_exercise(&self, exercise: &Exercise) -> Result<()> {
+        self.write_reviewed(exercise)?;
         self.write_starter(exercise)
+    }
+
+    /// Copy the (buggy) reviewed file of a review exercise into the workspace.
+    fn write_reviewed(&self, exercise: &Exercise) -> Result<()> {
+        let (Some(rel), Some(name)) = (exercise.review_file(), &exercise.manifest.review_file)
+        else {
+            return Ok(());
+        };
+        let dst = self.root.join(rel);
+        std::fs::copy(self.source_file(exercise, name), &dst)
+            .with_context(|| format!("writing {}", dst.display()))?;
+        Ok(())
     }
 
     /// Python interpreter: `.learn/env` venv when present, else `python3`.
@@ -301,5 +320,3 @@ mod tests {
         assert!(rules.contains("Intro to Python"));
     }
 }
-
-

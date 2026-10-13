@@ -1,0 +1,6 @@
+id = "claude-developer"
+title = "Claude Developer"
+version = "1.0.0"
+language = "python"
+description = "Build on the Claude API: Messages API requests and responses, tool use, and tool results. Checked offline with mock data."
+skill = "Claude API development"
