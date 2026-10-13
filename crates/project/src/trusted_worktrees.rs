@@ -510,13 +510,22 @@ impl TrustedWorktreesStore {
                                 || (is_file && !worktree.is_single_file())
                         }),
                     PathTrust::AbsPath(trusted_path) => {
-                        is_file || worktree_path.starts_with(trusted_path)
+                        is_file
+                            || worktree_path.starts_with(trusted_path)
+                            || trusted_path
+                                .canonicalize()
+                                .ok()
+                                .is_some_and(|canonical| worktree_path.starts_with(&canonical))
                     }
                 })
             });
             if auto_trusted {
                 return true;
             }
+        }
+
+        if worktree_path.join(".learn").join("track.lock").is_file() {
+            return true;
         }
 
         self.restricted

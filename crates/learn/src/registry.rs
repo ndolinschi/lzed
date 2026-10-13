@@ -6,11 +6,15 @@ use std::path::{Path, PathBuf};
 
 const RUNNER_FILE: &str = "runner/learn_runner.py";
 
-/// Root of all LearnZed workspaces: `$LEARNZED_HOME` or `~/LearnZed`.
+/// Root of all LearnZed workspaces: `$LEARNZED_HOME`, `<custom_data_dir>/LearnZed` (if `--user-data-dir` set), or `~/LearnZed`.
 pub fn learn_home() -> PathBuf {
-    std::env::var_os("LEARNZED_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| paths::home_dir().join("LearnZed"))
+    if let Some(env_home) = std::env::var_os("LEARNZED_HOME") {
+        return PathBuf::from(env_home);
+    }
+    if let Some(custom) = paths::custom_data_dir() {
+        return custom.join("LearnZed");
+    }
+    paths::home_dir().join("LearnZed")
 }
 
 pub fn tracks_dir(home: &Path) -> PathBuf {

@@ -486,10 +486,19 @@ fn main() {
         };
         // LEARNZED: auto-trust bundled tracks under LearnZed home (D9).
         let learn_home = learn::learn_home();
-        let bundled_ids = ["intro-to-python", "flask-api", "rust-axum", "claude-code"];
+        if let Err(err) = learn::install_bundled_tracks(&learn_home) {
+            log::error!("Failed to install bundled LearnZed tracks at startup: {err:#}");
+        }
+        std::fs::create_dir_all(&learn_home).ok();
+        let canonical_learn_home = std::fs::canonicalize(&learn_home).unwrap_or_else(|_| learn_home.clone());
         let trusted_local = db_trusted_paths.entry(None).or_default();
-        for id in bundled_ids {
-            trusted_local.insert(learn_home.join(id));
+        trusted_local.insert(learn_home.clone());
+        trusted_local.insert(canonical_learn_home);
+        for summary in learn::installed_tracks(&learn_home) {
+            trusted_local.insert(summary.workspace_dir.clone());
+            if let Ok(canonical) = summary.workspace_dir.canonicalize() {
+                trusted_local.insert(canonical);
+            }
         }
         trusted_worktrees::init(db_trusted_paths, cx);
         menu::init();
