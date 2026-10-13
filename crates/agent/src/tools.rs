@@ -18,6 +18,7 @@ mod go_to_definition_tool;
 mod grep_tool;
 mod list_agents_and_models_tool;
 mod list_directory_tool;
+pub mod learn_tools;
 mod move_path_tool;
 mod read_file_tool;
 mod rename_tool;
@@ -87,6 +88,7 @@ pub use go_to_definition_tool::*;
 pub use grep_tool::*;
 pub use list_agents_and_models_tool::*;
 pub use list_directory_tool::*;
+pub use learn_tools::*;
 pub use move_path_tool::*;
 pub use read_file_tool::*;
 pub use rename_tool::*;
@@ -221,6 +223,11 @@ tools! {
     TerminalTool,
     WebSearchTool,
     WriteFileTool,
+    GetCurrentExerciseTool,
+    RunCheckTool,
+    GetHintTool,
+    GetProgressTool,
+    GenerateTrackTool,
 }
 
 /// Some built-in tools are gated behind a feature flag and only become usable

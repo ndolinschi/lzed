@@ -1426,6 +1426,12 @@ mod tests {
             // tool calls inside the spawned thread, not the spawning itself.
             "create_thread",
             "spawn_agent",
+            // LearnZed learning tools
+            "get_current_exercise",
+            "run_check",
+            "get_hint",
+            "get_progress",
+            "generate_track",
         ];
 
         let tool_info_ids: Vec<&str> = TOOLS.iter().map(|t| t.id).collect();

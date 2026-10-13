@@ -1,0 +1,2 @@
+- Write `async fn health() -> &'static str` returning `"ok"`.
+- Register it on the router: `.route("/health", get(health))`.

@@ -1,0 +1,1 @@
+Architects estimate cost before choosing a model. Cost depends on input and output tokens, each priced **per million tokens** (MTok). The prices in this exercise are illustrative. Always check Anthropic's current pricing page.

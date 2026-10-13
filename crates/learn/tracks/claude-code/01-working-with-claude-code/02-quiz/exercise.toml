@@ -1,0 +1,6 @@
+id = "delegation-quiz"
+title = "Delegating to an Agent"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "answers.md"

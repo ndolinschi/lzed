@@ -37,7 +37,6 @@ use gpui_platform;
 
 use gpui_tokio::Tokio;
 use language::LanguageRegistry;
-use onboarding::{FIRST_OPEN, show_onboarding_view};
 use project_panel::ProjectPanel;
 use prompt_store::PromptBuilder;
 use remote::RemoteConnectionOptions;
@@ -478,13 +477,20 @@ fn main() {
 
     app.run(move |cx| {
         cx.set_global(app_db);
-        let db_trusted_paths = match workspace::WorkspaceDb::global(cx).fetch_trusted_worktrees() {
+        let mut db_trusted_paths = match workspace::WorkspaceDb::global(cx).fetch_trusted_worktrees() {
             Ok(trusted_paths) => trusted_paths,
             Err(e) => {
                 log::error!("Failed to do initial trusted worktrees fetch: {e:#}");
                 HashMap::default()
             }
         };
+        // LEARNZED: auto-trust bundled tracks under LearnZed home (D9).
+        let learn_home = learn::learn_home();
+        let bundled_ids = ["intro-to-python", "flask-api", "rust-axum", "claude-code"];
+        let trusted_local = db_trusted_paths.entry(None).or_default();
+        for id in bundled_ids {
+            trusted_local.insert(learn_home.join(id));
+        }
         trusted_worktrees::init(db_trusted_paths, cx);
         menu::init();
         zed_actions::init();
@@ -762,6 +768,8 @@ fn main() {
         vim::init(cx);
         terminal_view::init(cx);
         journal::init(app_state.clone(), cx);
+        // LEARNZED: track picker, Learn panel actions, bundled tracks.
+        learn_ui::init(cx);
         encoding_selector::init(cx);
         language_selector::init(cx);
         line_ending_selector::init(cx);
@@ -1423,7 +1431,6 @@ pub(crate) async fn restore_or_create_workspace(
     app_state: Arc<AppState>,
     cx: &mut AsyncApp,
 ) -> Result<()> {
-    let kvp = cx.update(|cx| KeyValueStore::global(cx));
     if let Some(multi_workspaces) = restorable_workspaces(cx, &app_state).await {
         let mut error_count = 0;
         for multi_workspace in multi_workspaces {
@@ -1553,23 +1560,14 @@ pub(crate) async fn restore_or_create_workspace(
             })
             .await?;
         }
-    } else if matches!(kvp.read_kvp(FIRST_OPEN), Ok(None)) {
-        cx.update(|cx| show_onboarding_view(app_state, cx)).await?;
     } else {
+        // LEARNZED: show the learning track picker instead of onboarding / an empty editor.
         cx.update(|cx| {
             workspace::open_new(
                 Default::default(),
                 app_state,
                 cx,
-                |workspace, window, cx| {
-                    let restore_on_startup = WorkspaceSettings::get_global(cx).restore_on_startup;
-                    match restore_on_startup {
-                        workspace::RestoreOnStartupBehavior::Launchpad => {}
-                        _ => {
-                            Editor::new_file(workspace, &Default::default(), window, cx);
-                        }
-                    }
-                },
+                |workspace, window, cx| learn_ui::show_track_picker(workspace, window, cx),
             )
         })
         .await?;

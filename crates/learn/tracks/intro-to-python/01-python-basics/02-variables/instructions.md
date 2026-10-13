@@ -1,0 +1,3 @@
+- Create a variable `height` equal to `1.79`.
+- Create a variable `weight` equal to `68.7`.
+- Create `bmi` as `weight / height ** 2` and print it.

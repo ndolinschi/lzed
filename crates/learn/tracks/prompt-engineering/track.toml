@@ -1,0 +1,6 @@
+id = "prompt-engineering"
+title = "Prompt Engineering"
+version = "1.0.0"
+language = "markdown"
+description = "Write clear, structured prompts for Claude: be direct, use XML tags and examples, and parse structured output."
+skill = "Prompt engineering"

@@ -1,0 +1,4 @@
+id = "ai-assisted-engineer"
+title = "AI-Assisted Rust Engineer"
+description = "Build Rust web services and learn to delegate effectively to coding agents."
+tracks = ["rust-axum", "claude-code"]

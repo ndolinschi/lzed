@@ -1,0 +1,3 @@
+- **Q1.** What should a task description for an agent include? **a)** only the file name **b)** the goal, constraints and how to verify success **c)** as little as possible
+- **Q2.** The agent proposes deleting a production database table. You should: **a)** approve, it knows best **b)** review the change and approve only if intended **c)** ignore it
+- **Q3.** Where do durable project instructions belong? **a)** repeated in every prompt **b)** a `CLAUDE.md` memory file **c)** a code comment in `main.rs`

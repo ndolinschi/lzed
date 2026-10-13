@@ -1,0 +1,5 @@
+check_equal("np_baseball", "Don't change how `np_baseball` is created.")
+check_output_contains(str(solution["np_baseball"][49, :]), "Did you print out the 50th row of `np_baseball` with `np_baseball[49, :]`?")
+check_object("np_weight_lb", "Did you define `np_weight_lb`?")
+check_equal("np_weight_lb", "`np_weight_lb` should be the entire second column: `np_baseball[:, 1]`.")
+check_output_contains(str(solution["np_baseball"][123, 0]), "Did you print the height of the 124th player with `np_baseball[123, 0]`?")

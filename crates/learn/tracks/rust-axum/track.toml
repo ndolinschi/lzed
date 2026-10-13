@@ -1,0 +1,6 @@
+id = "rust-axum"
+title = "Rust Axum"
+version = "1.0.0"
+language = "rust"
+description = "Learn the shape of an Axum web service: routers, handlers and JSON extractors."
+skill = "Rust web services"

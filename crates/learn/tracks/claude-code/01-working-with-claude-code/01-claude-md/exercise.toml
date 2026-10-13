@@ -1,0 +1,6 @@
+id = "claude-md"
+title = "Write a CLAUDE.md"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "CLAUDE.md"

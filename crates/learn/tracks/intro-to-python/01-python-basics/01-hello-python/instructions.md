@@ -1,0 +1,2 @@
+- Use `print()` to print the text `Hello, LearnZed!`.
+- Use `print()` to print the result of `7 + 10`.

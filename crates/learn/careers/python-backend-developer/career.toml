@@ -1,0 +1,4 @@
+id = "python-backend-developer"
+title = "Python Backend Developer"
+description = "Go from Python fundamentals to shipping a JSON API with Flask."
+tracks = ["intro-to-python", "flask-api"]

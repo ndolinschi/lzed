@@ -1,0 +1,6 @@
+id = "claude-architect-foundations"
+title = "Claude Architect Foundations"
+version = "1.0.0"
+language = "markdown"
+description = "Core concepts for designing systems on Claude: models, context windows, tokens, and when to use workflows vs agents."
+skill = "Claude solution architecture"

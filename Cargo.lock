@@ -283,6 +283,7 @@ dependencies = [
  "language",
  "language_model",
  "language_models",
+ "learn",
  "log",
  "lsp",
  "parking_lot",
@@ -9812,6 +9813,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
  "spin 0.9.8",
+]
+
+[[package]]
+name = "learn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "paths",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 0.9.8",
+]
+
+[[package]]
+name = "learn_ui"
+version = "0.1.0"
+dependencies = [
+ "agent_ui",
+ "anyhow",
+ "gpui",
+ "language_model",
+ "learn",
+ "log",
+ "markdown",
+ "project",
+ "project_panel",
+ "task",
+ "tempfile",
+ "ui",
+ "util",
+ "workspace",
+ "zed_actions",
 ]
 
 [[package]]
@@ -22458,6 +22493,8 @@ dependencies = [
  "language_selector",
  "language_tools",
  "languages",
+ "learn",
+ "learn_ui",
  "line_ending_selector",
  "log",
  "lsp_command_selector",

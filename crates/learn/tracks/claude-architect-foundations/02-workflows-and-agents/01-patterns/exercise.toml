@@ -1,0 +1,6 @@
+id = "patterns-quiz"
+title = "Choose the Right Pattern"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "answers.md"

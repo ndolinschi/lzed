@@ -1,0 +1,6 @@
+id = "subsetting-2d"
+title = "Subsetting 2D NumPy Arrays"
+xp = 100
+kind = "coding"
+language = "python"
+file = "script.py"

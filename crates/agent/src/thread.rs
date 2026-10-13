@@ -2277,6 +2277,12 @@ impl Thread {
         // `Thread::enabled_tools`.
         self.add_tool(CreateThreadTool::new(environment.clone()));
         self.add_tool(ListAgentsAndModelsTool::new(environment));
+
+        self.add_tool(crate::tools::learn_tools::GetCurrentExerciseTool::new(self.project.clone()));
+        self.add_tool(crate::tools::learn_tools::RunCheckTool::new(self.project.clone()));
+        self.add_tool(crate::tools::learn_tools::GetHintTool::new(self.project.clone()));
+        self.add_tool(crate::tools::learn_tools::GetProgressTool::new(self.project.clone()));
+        self.add_tool(crate::tools::learn_tools::GenerateTrackTool::new());
     }
 
     pub fn add_tool<T: AgentTool>(&mut self, tool: T) {

@@ -1321,6 +1321,11 @@
           "spawn_agent": true,
           "terminal": true,
           "write_file": true,
+          "get_current_exercise": true,
+          "run_check": true,
+          "get_hint": true,
+          "get_progress": true,
+          "generate_track": true,
         },
       },
       "ask": {
@@ -1343,6 +1348,11 @@
           "search_web": true,
           "skill": true,
           "spawn_agent": true,
+          "get_current_exercise": true,
+          "run_check": true,
+          "get_hint": true,
+          "get_progress": true,
+          "generate_track": true,
         },
       },
       "minimal": {

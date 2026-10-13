@@ -1,0 +1,434 @@
+//! Track format v1 (see .orchestration/BRIEF.md).
+
+use anyhow::{Context as _, Result, anyhow};
+use serde::Deserialize;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct TrackManifest {
+    pub id: String,
+    pub title: String,
+    pub version: String,
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default)]
+    pub description: String,
+    /// Skill awarded when every exercise of the track is passed.
+    #[serde(default)]
+    pub skill: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct ChapterManifest {
+    pub title: String,
+    #[serde(default)]
+    pub order: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct ExerciseManifest {
+    pub id: String,
+    pub title: String,
+    #[serde(default = "default_xp")]
+    pub xp: u32,
+    #[serde(default = "default_kind")]
+    pub kind: String,
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default = "default_file")]
+    pub file: String,
+    /// XP deducted from the award for each hint revealed.
+    #[serde(default = "default_hint_cost")]
+    pub hint_xp_cost: u32,
+    /// Workspace layout while this exercise is selected.
+    #[serde(default)]
+    pub layout: Layout,
+    /// For `kind = "review"`: the file with planted bugs the learner reviews
+    /// (copied next to the learner's `review.md`).
+    #[serde(default)]
+    pub review_file: Option<String>,
+}
+
+/// One planted bug in a `kind = "review"` exercise (`bugs.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct PlantedBug {
+    /// Short name shown in check results, e.g. "off-by-one".
+    pub name: String,
+    /// Inclusive line range `[first, last]` in the reviewed file.
+    pub lines: [u32; 2],
+    /// A review comment matches when it contains any of these (case-insensitive).
+    pub keywords: Vec<String>,
+    /// Feedback shown when the bug was missed.
+    #[serde(default)]
+    pub hint: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BugsManifest {
+    #[serde(rename = "bug")]
+    pub bugs: Vec<PlantedBug>,
+}
+
+/// Parse and validate `bugs.toml`.
+pub fn parse_bugs(s: &str) -> Result<BugsManifest> {
+    let m: BugsManifest = toml::from_str(s)?;
+    if m.bugs.is_empty() {
+        anyhow::bail!("bugs.toml must list at least one [[bug]]");
+    }
+    for b in &m.bugs {
+        if b.lines[0] == 0 || b.lines[0] > b.lines[1] {
+            anyhow::bail!("bug {:?}: invalid line range {:?}", b.name, b.lines);
+        }
+        if b.keywords.iter().all(|k| k.trim().is_empty()) {
+            anyhow::bail!("bug {:?}: needs at least one keyword", b.name);
+        }
+    }
+    Ok(m)
+}
+
+/// Parse a learner review: lines like `L12: comment` (also `L12-14:`).
+/// Returns (first line, last line, comment).
+pub fn parse_review(s: &str) -> Vec<(u32, u32, String)> {
+    s.lines()
+        .filter_map(|line| {
+            let line = line.trim().trim_start_matches(['-', '*']).trim();
+            let rest = line.strip_prefix('L').or_else(|| line.strip_prefix('l'))?;
+            let (range, comment) = rest.split_once(':')?;
+            let (a, b) = match range.split_once('-') {
+                Some((a, b)) => (a.trim().parse().ok()?, b.trim().parse().ok()?),
+                None => {
+                    let n = range.trim().parse().ok()?;
+                    (n, n)
+                }
+            };
+            Some((a, b, comment.trim().to_string()))
+        })
+        .collect()
+}
+
+/// How the workspace is arranged for an exercise.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Layout {
+    /// Only the Learn panel and the exercise file: the Project Panel is hidden.
+    #[default]
+    Focused,
+    /// Multi-file / freestyle work: the Project Panel is shown.
+    Project,
+}
+
+fn default_language() -> String {
+    "python".into()
+}
+fn default_xp() -> u32 {
+    100
+}
+fn default_kind() -> String {
+    "coding".into()
+}
+fn default_file() -> String {
+    "script.py".into()
+}
+fn default_hint_cost() -> u32 {
+    30
+}
+
+#[derive(Debug, Clone)]
+pub struct Track {
+    pub manifest: TrackManifest,
+    /// Directory containing track.toml.
+    pub root: PathBuf,
+    pub chapters: Vec<Chapter>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Chapter {
+    pub dir_name: String,
+    pub manifest: ChapterManifest,
+    pub exercises: Vec<Exercise>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Exercise {
+    pub manifest: ExerciseManifest,
+    /// Path relative to the track root, e.g. `02-numpy/02-subsetting-2d`.
+    pub rel_dir: PathBuf,
+    pub context: String,
+    pub instructions: String,
+    pub hints: Vec<String>,
+}
+
+impl Exercise {
+    pub fn id(&self) -> &str {
+        &self.manifest.id
+    }
+    /// Name of a variant source file (`starter`, `solution`) using the
+    /// learner file's extension, e.g. `starter.rs` for `main.rs`.
+    pub fn variant_file(&self, stem: &str) -> String {
+        match Path::new(&self.manifest.file)
+            .extension()
+            .and_then(|e| e.to_str())
+        {
+            Some(ext) => format!("{stem}.{ext}"),
+            None => format!("{stem}.py"),
+        }
+    }
+
+    /// Path of the learner's file relative to the workspace root.
+    pub fn user_file(&self) -> PathBuf {
+        self.rel_dir.join(&self.manifest.file)
+    }
+
+    pub fn is_review(&self) -> bool {
+        self.manifest.kind == "review"
+    }
+
+    /// Path of the reviewed file relative to the workspace root (review exercises).
+    pub fn review_file(&self) -> Option<PathBuf> {
+        self.manifest
+            .review_file
+            .as_ref()
+            .map(|f| self.rel_dir.join(f))
+    }
+}
+
+impl Track {
+    pub fn id(&self) -> &str {
+        &self.manifest.id
+    }
+
+    pub fn exercises(&self) -> impl Iterator<Item = &Exercise> {
+        self.chapters.iter().flat_map(|c| c.exercises.iter())
+    }
+
+    pub fn exercise(&self, id: &str) -> Option<&Exercise> {
+        self.exercises().find(|e| e.id() == id)
+    }
+
+    pub fn next_exercise(&self, id: &str) -> Option<&Exercise> {
+        let mut iter = self.exercises().skip_while(|e| e.id() != id);
+        iter.next();
+        iter.next()
+    }
+
+    pub fn previous_exercise(&self, id: &str) -> Option<&Exercise> {
+        let mut prev = None;
+        for e in self.exercises() {
+            if e.id() == id {
+                return prev;
+            }
+            prev = Some(e);
+        }
+        None
+    }
+
+    pub fn total_xp(&self) -> u32 {
+        self.exercises().map(|e| e.manifest.xp).sum()
+    }
+
+    /// Absolute path of a source file of an exercise inside the track definition.
+    pub fn exercise_source(&self, exercise: &Exercise, file: &str) -> PathBuf {
+        self.root.join(&exercise.rel_dir).join(file)
+    }
+}
+
+pub fn parse_track_manifest(s: &str) -> Result<TrackManifest> {
+    Ok(toml::from_str(s)?)
+}
+pub fn parse_chapter_manifest(s: &str) -> Result<ChapterManifest> {
+    Ok(toml::from_str(s)?)
+}
+pub fn parse_exercise_manifest(s: &str) -> Result<ExerciseManifest> {
+    Ok(toml::from_str(s)?)
+}
+
+/// Split hints.md into hints. Hints are separated by a line containing only `---`.
+pub fn parse_hints(s: &str) -> Vec<String> {
+    let mut hints = Vec::new();
+    let mut current = String::new();
+    for line in s.lines() {
+        if line.trim() == "---" {
+            hints.push(std::mem::take(&mut current));
+        } else {
+            current.push_str(line);
+            current.push('\n');
+        }
+    }
+    hints.push(current);
+    hints
+        .into_iter()
+        .map(|h| h.trim().to_string())
+        .filter(|h| !h.is_empty())
+        .collect()
+}
+
+fn read_optional(path: &Path) -> Result<String> {
+    match std::fs::read_to_string(path) {
+        Ok(s) => Ok(s),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(e).with_context(|| format!("reading {}", path.display())),
+    }
+}
+
+fn read_toml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
+    let s = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    toml::from_str(&s).with_context(|| format!("parsing {}", path.display()))
+}
+
+fn sorted_subdirs(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut dirs = std::fs::read_dir(dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+        .collect::<Vec<_>>();
+    dirs.sort();
+    Ok(dirs)
+}
+
+/// Load a track from a directory containing `track.toml`.
+pub fn load_track(root: &Path) -> Result<Track> {
+    let manifest: TrackManifest = read_toml(&root.join("track.toml"))?;
+    let mut chapters = Vec::new();
+    for chapter_dir in sorted_subdirs(root)? {
+        let chapter_toml = chapter_dir.join("chapter.toml");
+        if !chapter_toml.exists() {
+            continue;
+        }
+        let chapter_manifest: ChapterManifest = read_toml(&chapter_toml)?;
+        let dir_name = file_name(&chapter_dir)?;
+        let mut exercises = Vec::new();
+        for exercise_dir in sorted_subdirs(&chapter_dir)? {
+            let exercise_toml = exercise_dir.join("exercise.toml");
+            if !exercise_toml.exists() {
+                continue;
+            }
+            let exercise_manifest: ExerciseManifest = read_toml(&exercise_toml)?;
+            if exercise_manifest.kind == "review" {
+                let bugs = exercise_dir.join("bugs.toml");
+                let s = std::fs::read_to_string(&bugs)
+                    .with_context(|| format!("reading {}", bugs.display()))?;
+                parse_bugs(&s).with_context(|| format!("parsing {}", bugs.display()))?;
+                let reviewed = exercise_manifest.review_file.as_deref().unwrap_or("");
+                if reviewed.is_empty() || !exercise_dir.join(reviewed).is_file() {
+                    anyhow::bail!(
+                        "{}: review exercises need an existing `review_file`",
+                        exercise_toml.display()
+                    );
+                }
+            }
+            exercises.push(Exercise {
+                manifest: exercise_manifest,
+                rel_dir: PathBuf::from(&dir_name).join(file_name(&exercise_dir)?),
+                context: read_optional(&exercise_dir.join("context.md"))?,
+                instructions: read_optional(&exercise_dir.join("instructions.md"))?,
+                hints: parse_hints(&read_optional(&exercise_dir.join("hints.md"))?),
+            });
+        }
+        chapters.push(Chapter {
+            dir_name,
+            manifest: chapter_manifest,
+            exercises,
+        });
+    }
+    // Directory names (NN- prefix) give the default order; an explicit `order` wins.
+    chapters.sort_by_key(|c| c.manifest.order.unwrap_or(u32::MAX));
+    Ok(Track {
+        manifest,
+        root: root.to_path_buf(),
+        chapters,
+    })
+}
+
+fn file_name(p: &Path) -> Result<String> {
+    p.file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow!("invalid directory name {}", p.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_manifests_with_defaults() {
+        let t = parse_track_manifest("id = \"t\"\ntitle = \"T\"\nversion = \"1\"").unwrap();
+        assert_eq!(t.language, "python");
+        let c = parse_chapter_manifest("title = \"C\"\norder = 2").unwrap();
+        assert_eq!(c.order, Some(2));
+        let e = parse_exercise_manifest("id = \"e\"\ntitle = \"E\"").unwrap();
+        assert_eq!(e.file, "script.py");
+        assert_eq!(e.xp, 100);
+        assert_eq!(e.kind, "coding");
+        assert_eq!(e.layout, Layout::Focused);
+        let e = parse_exercise_manifest(
+            "id = \"e\"\ntitle = \"E\"\nfile = \"main.rs\"\nlayout = \"project\"",
+        )
+        .unwrap();
+        assert_eq!(e.layout, Layout::Project);
+        assert!(parse_exercise_manifest("title = \"no id\"").is_err());
+    }
+
+    #[test]
+    fn splits_hints() {
+        assert_eq!(parse_hints("a\n\n---\nb\n---\n"), vec!["a", "b"]);
+        assert!(parse_hints("").is_empty());
+    }
+
+    #[test]
+    fn loads_bundled_sample_track() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tracks/intro-to-python");
+        let track = load_track(&root).unwrap();
+        assert_eq!(track.id(), "intro-to-python");
+        assert_eq!(track.chapters.len(), 2);
+        assert_eq!(track.chapters[1].manifest.title, "NumPy");
+        let ex = track.exercise("subsetting-2d").unwrap();
+        assert_eq!(
+            ex.user_file(),
+            Path::new("02-numpy/02-subsetting-2d/script.py")
+        );
+        assert_eq!(ex.hints.len(), 3);
+        assert!(ex.instructions.contains("np_weight_lb"));
+        assert_eq!(
+            track.next_exercise("numpy-arrays").unwrap().id(),
+            "subsetting-2d"
+        );
+        assert!(track.next_exercise("subsetting-2d").is_none());
+        assert_eq!(
+            track.previous_exercise("variables").unwrap().id(),
+            "hello-python"
+        );
+        let setup = std::fs::read_to_string(track.exercise_source(ex, "setup.py")).unwrap();
+        assert!(setup.contains("baseball"));
+    }
+
+    #[test]
+    fn bad_toml_reports_path() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("track.toml"), "id = ").unwrap();
+        let err = format!("{:#}", load_track(dir.path()).unwrap_err());
+        assert!(err.contains("track.toml"), "{err}");
+    }
+
+    #[test]
+    fn parses_bugs_and_review() {
+        let m = parse_bugs(
+            "[[bug]]\nname = \"off-by-one\"\nlines = [3, 4]\nkeywords = [\"off-by-one\", \"range\"]\n",
+        )
+        .unwrap();
+        assert_eq!(m.bugs[0].lines, [3, 4]);
+        assert!(parse_bugs("[[bug]]\nname = \"x\"\nlines = [5, 2]\nkeywords = [\"a\"]\n").is_err());
+        assert!(parse_bugs("bug = []").is_err());
+        let r = parse_review(
+            "# Review\nL3: off-by-one in range\n- L10-12: missing await\nnot a comment\n",
+        );
+        assert_eq!(
+            r,
+            vec![
+                (3, 3, "off-by-one in range".into()),
+                (10, 12, "missing await".into())
+            ]
+        );
+    }
+}
