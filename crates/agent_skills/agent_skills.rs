@@ -691,14 +691,30 @@ pub fn read_skill_body_from_content(
     Ok(body.trim().to_string())
 }
 
-/// Content of the built-in `create-skill` SKILL.md, embedded at compile time.
+/// Content of the built-in SKILL.md files, embedded at compile time.
 const CREATE_SKILL_CONTENT: &str = include_str!("builtin/create-skill/SKILL.md");
+const EXERCISE_SKILL_CONTENT: &str = include_str!("builtin/exercise/SKILL.md");
+const CHECK_SKILL_CONTENT: &str = include_str!("builtin/check/SKILL.md");
+const HINT_SKILL_CONTENT: &str = include_str!("builtin/hint/SKILL.md");
+const EXPLAIN_ERROR_SKILL_CONTENT: &str = include_str!("builtin/explain-error/SKILL.md");
+
+/// All built-in skills as `(name, raw_content)` pairs. Used by
+/// `builtin_skill_content` to serve the full SKILL.md without disk I/O.
+const BUILTIN_SKILL_ENTRIES: &[(&str, &str)] = &[
+    ("create-skill", CREATE_SKILL_CONTENT),
+    ("exercise", EXERCISE_SKILL_CONTENT),
+    ("check", CHECK_SKILL_CONTENT),
+    ("hint", HINT_SKILL_CONTENT),
+    ("explain-error", EXPLAIN_ERROR_SKILL_CONTENT),
+];
 
 /// Returns the set of skills that are compiled into the Zed binary.
 pub fn builtin_skills() -> Vec<Skill> {
     let mut skills = Vec::new();
-    if let Ok(skill) = parse_builtin_skill("create-skill", CREATE_SKILL_CONTENT) {
-        skills.push(skill);
+    for (name, content) in BUILTIN_SKILL_ENTRIES {
+        if let Ok(skill) = parse_builtin_skill(name, content) {
+            skills.push(skill);
+        }
     }
     skills
 }
@@ -724,10 +740,6 @@ fn parse_builtin_skill(name: &str, content: &'static str) -> Result<Skill> {
         embedded_body: Some(body.trim()),
     })
 }
-
-/// All built-in skills as `(name, raw_content)` pairs. Used by
-/// `builtin_skill_content` to serve the full SKILL.md without disk I/O.
-const BUILTIN_SKILL_ENTRIES: &[(&str, &str)] = &[("create-skill", CREATE_SKILL_CONTENT)];
 
 /// Look up the full embedded content of a built-in skill by its
 /// synthetic file path. Returns `None` if the path doesn't match any
@@ -2198,5 +2210,16 @@ description: A skill with no body content
         assert!(decode_skill_share_link("zed://skill").is_err());
         assert!(decode_skill_share_link("zed://skill?other=1").is_err());
         assert!(decode_skill_share_link("zed://skill?data=!!!notbase64").is_err());
+    }
+
+    #[test]
+    fn builtin_skills_include_learning_slash_commands() {
+        let skills = builtin_skills();
+        let names: Vec<&str> = skills.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"create-skill"));
+        assert!(names.contains(&"exercise"));
+        assert!(names.contains(&"check"));
+        assert!(names.contains(&"hint"));
+        assert!(names.contains(&"explain-error"));
     }
 }
