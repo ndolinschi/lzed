@@ -1,48 +1,113 @@
-# Zed
+<p align="center">
+  <img src="assets/images/learnzed_logo.png" alt="LearnZed logo" width="160">
+</p>
 
-[![Zed](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/zed-industries/zed/main/assets/badge/v0.json)](https://zed.dev)
-[![CI](https://github.com/zed-industries/zed/actions/workflows/run_tests.yml/badge.svg)](https://github.com/zed-industries/zed/actions/workflows/run_tests.yml)
+<h1 align="center">LearnZed</h1>
 
-Welcome to Zed, a high-performance, multiplayer code editor from the creators of [Atom](https://github.com/atom/atom) and [Tree-sitter](https://github.com/tree-sitter/tree-sitter).
+<p align="center"><b>Learn to code by writing real code in a real editor.</b></p>
 
----
+LearnZed is an interactive learning app, similar to DataCamp, built on top of the [Zed](https://zed.dev) editor. You pick a **career path** or a **skill track** and work through short coding exercises inside a full code editor. **Run** your code to try it, then **Submit** it for an automated check. You earn **XP**, can unlock **hints** (they cost XP), and finishing a track gives you a **skill**. When you're stuck, **Ask AI** sends the exercise to Zed's built-in agent, or to your own agent such as Claude Code.
 
-### Installation
+> Status: MVP / work in progress. Lives on the `learn/main` branch.
 
-On macOS, Linux, and Windows you can [download Zed directly](https://zed.dev/download) or install Zed via your local package manager ([macOS](https://zed.dev/docs/installation#macos)/[Linux](https://zed.dev/docs/linux#installing-via-a-package-manager)/[Windows](https://zed.dev/docs/windows#package-managers)).
+## Screenshots
 
-Other platforms are not yet available:
+| Pick a career path or skill track | Focused exercise layout |
+|---|---|
+| ![Track picker](docs/learnzed/screenshots/v3-picker.png) | ![Focused layout](docs/learnzed/screenshots/v3-layout-focused.png) |
+| **Project layout (multi-file tracks)** | **Skill earned** |
+| ![Project layout](docs/learnzed/screenshots/v3-layout-project.png) | ![Skill earned](docs/learnzed/screenshots/v3-skill-earned.png) |
+| **Failed submit with feedback** | **Passed submit, XP awarded** |
+| ![Submit failed](docs/learnzed/screenshots/v2-submit-failed.png) | ![Submit passed](docs/learnzed/screenshots/v2-submit-passed.png) |
+| **Ask AI: connect a provider** | **Ask AI in the agent panel** |
+| ![Connect AI](docs/learnzed/screenshots/v3-ask-ai-connect.png) | ![Agent panel](docs/learnzed/screenshots/v3-ask-ai-agent-panel.png) |
 
-- Web ([tracking discussion](https://github.com/zed-industries/zed/discussions/26195))
+## What's inside
 
-### Developing Zed
+- **Career paths**: ordered groups of tracks, e.g. *Python Backend Developer* and *AI-Assisted Rust Engineer*.
+- **Skill tracks** that come bundled: *Intro to Python* (with NumPy), *Flask API*, *Rust Axum*, *Claude Code*.
+- **Learn panel**: context, instructions, hints, plus *Run code*, *Submit answer* and *Ask AI* buttons.
+- **Automated checks**: each exercise ships a `check.py` that inspects the output and code and returns friendly feedback.
+- **Progress**: XP, completed exercises and earned skills are saved locally.
+- **Layouts**: `focused` (just the exercise file and the Learn panel) or `project` (file tree shown, for multi-file work).
+- **Your own tracks**: *Add track* imports a track from a local folder.
 
-- [Building Zed for macOS](./docs/src/development/macos.md)
-- [Building Zed for Linux](./docs/src/development/linux.md)
-- [Building Zed for Windows](./docs/src/development/windows.md)
+LearnZed keeps its config and data in separate `learnzed` directories, so it never touches an existing Zed install. The binary is called `learnzed`.
 
-### Contributing
+## Quick start
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for ways you can contribute to Zed.
+Requirements: a Rust toolchain (via rustup), Zed's usual [build dependencies](docs/src/development), and **Python 3 with `numpy`** for the exercise checker (`pip install numpy`).
 
-Also... we're hiring! Check out our [jobs](https://zed.dev/jobs) page for open roles.
+```sh
+git clone -b learn/main https://github.com/ndolinschi/lzed.git
+cd lzed
+cargo run            # dev build, launches the track picker
+```
 
-### Licensing
+Or run the dev binary directly with a throwaway data dir:
 
-Zed source code is licensed primarily under GPL-3.0-or-later, with Apache-2.0 components where marked.
+```sh
+cargo build
+ZED_ALLOW_EMULATED_GPU=1 target/debug/learnzed --user-data-dir /tmp/lz-data
+```
 
-License information for third party dependencies must be correctly provided for CI to pass.
+(`ZED_ALLOW_EMULATED_GPU=1` is only needed on machines without a GPU.)
 
-We use [`cargo-about`](https://github.com/EmbarkStudios/cargo-about) to automatically comply with open source licenses. If CI is failing, check the following:
+Run the learning core tests with `cargo test -p learn`.
 
-- Is it showing a `no license specified` error for a crate you've created? If so, add `publish = false` under `[package]` in your crate's Cargo.toml.
-- Is the error `failed to satisfy license requirements` for a dependency? If so, first determine what license the project has and whether this system is sufficient to comply with this license's requirements. If you're unsure, ask a lawyer. Once you've verified that this system is acceptable add the license's SPDX identifier to the `accepted` array in `script/licenses/zed-licenses.toml`.
-- Is `cargo-about` unable to find the license for a dependency? If so, add a clarification field at the end of `script/licenses/zed-licenses.toml`, as specified in the [cargo-about book](https://embarkstudios.github.io/cargo-about/cli/generate/config.html#crate-configuration).
+## Track format
 
-## Sponsorship
+Bundled tracks live in `crates/learn/tracks/`, and career paths in `crates/learn/careers/`.
 
-Zed is developed by **Zed Industries, Inc.**, a for-profit company.
+```
+my-track/
+  track.toml                # id, title, version, language, description, skill
+  01-basics/
+    chapter.toml            # title, order
+    01-hello/
+      exercise.toml         # id, title, xp, kind, language, file, hint_xp_cost, layout
+      context.md            # background shown above the task
+      instructions.md       # what to do
+      hints.md              # hints, revealed one at a time
+      starter.py            # initial contents of the exercise file
+      solution.py           # reference solution
+      setup.py              # optional pre-exercise code
+      check.py              # automated checks
+```
 
-If you’d like to financially support the project, you can do so via GitHub Sponsors.
-Sponsorships go directly to Zed Industries and are used as general company revenue.
-There are no perks or entitlements associated with sponsorship.
+`exercise.toml` defaults: `xp = 100`, `kind = "coding"`, `language = "python"`, `file = "script.py"`, `hint_xp_cost = 30`, `layout = "focused"`. Set `layout = "project"` for multi-file or freestyle exercises.
+
+`check.py` uses helpers from the runner (`crates/learn/runner/learn_runner.py`):
+
+```python
+check_output_contains("Hello, LearnZed!", "Did you print `Hello, LearnZed!` exactly?")
+check_function_called("print")
+```
+
+A career path is a `career.toml`:
+
+```toml
+id = "ai-assisted-engineer"
+title = "AI-Assisted Rust Engineer"
+description = "Build Rust web services and learn to delegate effectively to coding agents."
+tracks = ["rust-axum", "claude-code"]
+```
+
+### Authoring a track
+
+1. Copy an existing track from `crates/learn/tracks/` and change the `id` and `title` in `track.toml`. Set `skill` to name the skill that finishing it awards.
+2. Add chapters and exercises following the layout above.
+3. Write `check.py` with clear, beginner-friendly failure messages, and check that `solution.*` passes.
+4. Load it with **Add track** in the picker, or add it to the bundled tracks.
+
+## Roadmap
+
+- Import tracks from a git URL
+- IPython-style REPL
+- AI tutor tools inside the Zed chat: per-track `.rules`, exercise/check/hint tools, `/exercise`, `/check`, `/hint`, `/explain-error`
+- UI tests for the picker and the Learn panel; update packaging scripts for the `learnzed` binary
+- Auto-trust bundled tracks
+
+## Credits & license
+
+LearnZed is a fork of [Zed](https://github.com/zed-industries/zed) by Zed Industries; all editor credit goes to them. Like Zed, it is licensed under the GPL (see `LICENSE-GPL` and the other license files in this repository).
