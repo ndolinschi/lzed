@@ -5,13 +5,14 @@ State
 - `cargo test -p learn`: 17/17 pass (includes materialize_creates_agent_rules).
 - `cargo test -p learn_ui`: 4/4 pass.
 - AI-1 implemented: `TrackWorkspace::materialize` creates `.rules` with Socratic tutor persona, strict no-leak policy against `.learn/track/**/solution.*`, workspace layout, `.learn/progress.json` schema, and check result guidance.
+- AI-2 implemented: Built-in agent tools (`get_current_exercise`, `run_check`, `get_hint`, `get_progress`), registered in `Thread::add_default_tools` and allowed in default profiles. Defensive read restriction added to `read_file_tool` to block solution leaks. Unit tests pass.
 
 In-flight: none.
 
 Next 3 actions
-1. AI-2: Agent tools for learning (context server / MCP `learnzed` or built-in tools).
-2. AI-3: Slash commands / prompt library entries in agent chat (/exercise, /check, /hint, /explain-error).
-3. Dev build & screenshots via scrot.
+1. AI-3: Slash commands / prompt library entries in agent chat (/exercise, /check, /hint, /explain-error).
+2. AI-4: "Generate track" / "Generate skill" via AI interview in Zed agent chat.
+3. Dev build & screenshots via scrot (DISPLAY=:5) to /workspace/learnzed-shots/agy-*.png.
 
 
 Known risks / notes
