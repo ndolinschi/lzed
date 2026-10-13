@@ -1,5 +1,3 @@
-> [!IMPORTANT]
-> Remove this line to confirm you've reviewed this PR before submitting.
 <p align="center">
   <img src="assets/images/learnzed_logo.png" alt="LearnZed logo" width="160">
 </p>
@@ -8,31 +6,49 @@
 
 <p align="center"><b>Learn to code by writing real code in a real editor.</b></p>
 
-LearnZed is an interactive learning app, similar to DataCamp, built on top of the [Zed](https://zed.dev) editor. You pick a **career path** or a **skill track** and work through short coding exercises inside a full code editor. **Run** your code to try it, then **Submit** it for an automated check. You earn **XP**, can unlock **hints** (they cost XP), and finishing a track gives you a **skill**. When you're stuck, **Ask AI** sends the exercise to Zed's built-in agent, or to your own agent such as Claude Code.
+<p align="center"><img src="docs/learnzed/screenshots/hero-picker.png" alt="LearnZed: Learn panel and track picker" width="900"></p>
+
+LearnZed is an interactive learning app, similar to DataCamp, built on top of the [Zed](https://zed.dev) editor. You pick a **career path** or a **skill track** and work through short exercises inside a full code editor. **Run** your code to try it, then **Submit** it for an automated check. You earn **XP**, can unlock **hints** (they cost XP), and finishing a track gives you a **skill**. When you're stuck, **Ask AI** sends the exercise to Zed's agent, or to your own agent such as Claude Code. The agent can also **generate a new track** for you.
 
 > Status: MVP / work in progress. Lives on the `learn/main` branch.
 
-## Screenshots
+## Features
 
-| Pick a career path or skill track | Focused exercise layout |
-|---|---|
-| ![Track picker](docs/learnzed/screenshots/v3-picker.png) | ![Focused layout](docs/learnzed/screenshots/v3-layout-focused.png) |
-| **Project layout (multi-file tracks)** | **Skill earned** |
-| ![Project layout](docs/learnzed/screenshots/v3-layout-project.png) | ![Skill earned](docs/learnzed/screenshots/v3-skill-earned.png) |
-| **Failed submit with feedback** | **Passed submit, XP awarded** |
-| ![Submit failed](docs/learnzed/screenshots/v2-submit-failed.png) | ![Submit passed](docs/learnzed/screenshots/v2-submit-passed.png) |
-| **Ask AI: connect a provider** | **Ask AI in the agent panel** |
-| ![Connect AI](docs/learnzed/screenshots/v3-ask-ai-connect.png) | ![Agent panel](docs/learnzed/screenshots/v3-ask-ai-agent-panel.png) |
+### Career paths and skill tracks
 
-## What's inside
+Career paths are ordered sequences of tracks toward a role: *AI Engineer (Claude)*, *AI-Assisted Rust Engineer* and *Python Backend Developer*. Skill tracks are short and focused. Finishing one earns its skill.
 
-- **Career paths**: ordered groups of tracks, e.g. *Python Backend Developer* and *AI-Assisted Rust Engineer*.
-- **Skill tracks** that come bundled: *Intro to Python* (with NumPy), *Flask API*, *Rust Axum*, *Claude Code*.
-- **Learn panel**: context, instructions, hints, plus *Run code*, *Submit answer* and *Ask AI* buttons.
-- **Automated checks**: each exercise ships a `check.py` that inspects the output and code and returns friendly feedback.
-- **Progress**: XP, completed exercises and earned skills are saved locally.
-- **Layouts**: `focused` (just the exercise file and the Learn panel) or `project` (file tree shown, for multi-file work).
-- **Your own tracks**: *Add track* imports a track from a local folder.
+Bundled tracks: *Intro to Python* (with NumPy), *Flask API*, *Rust Axum*, plus the Claude tracks: *Claude Architect Foundations*, *Prompt Engineering*, *Claude Developer* (Messages API, tool use), *Claude Agents*, *Claude Code* (CLAUDE.md, permissions, MCP config) and *Review AI-Generated Code*. Claude exercises are checked offline against mock data, so they need no API key.
+
+<img src="docs/learnzed/screenshots/career-paths.png" alt="Career paths" width="49%"> <img src="docs/learnzed/screenshots/skill-tracks.png" alt="Skill tracks" width="49%">
+
+### Exercises with Run and Submit
+
+The Learn panel shows the context, instructions and hints, with *Run code*, *Submit answer*, *Hint* and *Ask AI* buttons. Each exercise ships a `check.py` that inspects your output and code and returns friendly feedback. Layouts are `focused` (just the exercise file) or `project` (file tree shown, for multi-file work).
+
+<img src="docs/learnzed/screenshots/exercise.png" alt="Claude Developer exercise" width="900">
+
+### Code review exercises
+
+Exercises with `kind = "review"` give you plausible-looking code with planted bugs. You write findings in `review.md` as `L12: what is wrong and why`. Submit checks that each bug was spotted on the right line and named.
+
+<img src="docs/learnzed/screenshots/review-exercise.png" alt="Review exercise" width="900">
+
+<img src="docs/learnzed/screenshots/submit-failed.png" alt="Failed submit with feedback" width="49%"> <img src="docs/learnzed/screenshots/submit-passed.png" alt="Passed submit, XP awarded" width="49%">
+
+### Ask AI and slash commands
+
+*Ask AI* opens Zed's agent panel with the exercise context. It gives hints and explanations, not the solution. If no AI provider is connected, LearnZed asks you to connect one. Each track workspace gets a `.rules` file with tutor guidelines. The agent also has learning tools and the built-in skills `/exercise`, `/check`, `/hint` and `/explain-error`.
+
+<img src="docs/learnzed/screenshots/slash-commands.png" alt="Slash commands in the agent panel" width="900">
+
+### Generate Track and Generate Skill
+
+*Generate Track* and *Generate Skill* in the picker start a short AI interview in the agent chat about your goals, level, stack and time budget. The agent then generates a track, validates it with the track parser and checker, and adds it to the picker. *Import Track* loads a track from a local folder.
+
+<img src="docs/learnzed/screenshots/generate-track.png" alt="Generate Track interview" width="900">
+
+Progress (XP, completed exercises and skills) is saved locally.
 
 LearnZed keeps its config and data in separate `learnzed` directories, so it never touches an existing Zed install. The binary is called `learnzed`.
 
@@ -84,7 +100,7 @@ my-track/
       starter.py            # initial contents of the exercise file
       solution.py           # reference solution
       setup.py              # optional pre-exercise code
-      check.py              # automated checks
+      check.py              # automated checks (review exercises use bugs.toml + review_file instead)
 ```
 
 `exercise.toml` defaults: `xp = 100`, `kind = "coding"`, `language = "python"`, `file = "script.py"`, `hint_xp_cost = 30`, `layout = "focused"`. Set `layout = "project"` for multi-file or freestyle exercises.
@@ -110,13 +126,13 @@ tracks = ["rust-axum", "claude-code"]
 1. Copy an existing track from `crates/learn/tracks/` and change the `id` and `title` in `track.toml`. Set `skill` to name the skill that finishing it awards.
 2. Add chapters and exercises following the layout above.
 3. Write `check.py` with clear, beginner-friendly failure messages, and check that `solution.*` passes.
-4. Load it with **Add track** in the picker, or add it to the bundled tracks.
+4. Load it with **Import Track** in the picker, or add it to the bundled tracks.
 
 ## Roadmap
 
 - Import tracks from a git URL
 - IPython-style REPL
-- AI tutor tools inside the Zed chat: per-track `.rules`, exercise/check/hint tools, `/exercise`, `/check`, `/hint`, `/explain-error`
+- Free-form AI feedback on review exercises
 - UI tests for the picker and the Learn panel; update packaging scripts for the `learnzed` binary
 - Auto-trust bundled tracks
 
