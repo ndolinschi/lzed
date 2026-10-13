@@ -11,6 +11,16 @@ Welcome to Zed, a high-performance, multiplayer code editor from the creators of
 
 ---
 
+### Download LearnZed
+
+Prebuilt **unsigned** LearnZed builds are attached to [GitHub Releases](https://github.com/ndolinschi/lzed/releases):
+
+- Linux x86_64: `learnzed-linux-x86_64.tar.gz`
+- macOS Apple Silicon: `learnzed-macos-aarch64.tar.gz` (unsigned, so run `xattr -dr com.apple.quarantine learnzed` before the first launch)
+- Windows x86_64: `learnzed-windows-x86_64.zip` (unsigned, so SmartScreen may warn)
+
+Exercises need Python 3 with `numpy`. Releases are built by `.github/workflows/learnzed_release.yml` when a `v*` tag is pushed.
+
 ### Installation
 
 On macOS, Linux, and Windows you can [download Zed directly](https://zed.dev/download) or install Zed via your local package manager ([macOS](https://zed.dev/docs/installation#macos)/[Linux](https://zed.dev/docs/linux#installing-via-a-package-manager)/[Windows](https://zed.dev/docs/windows#package-managers)).
