@@ -3,7 +3,7 @@ use gpui::{
     Window,
 };
 use learn::{TrackSummary, TrackWorkspace};
-use ui::{Divider, ProgressBar, prelude::*};
+use ui::{ProgressBar, TintColor, prelude::*};
 use util::ResultExt as _;
 use workspace::{
     OpenMode, Workspace,
@@ -91,74 +91,115 @@ impl TrackPicker {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let manifest = &summary.track.manifest;
-        let exercises = summary.track.exercises().count();
+        let total = summary.track.exercises().count();
+        let done = (summary.percent as usize * total).div_ceil(100).min(total);
         let chapters = summary.track.chapters.len();
-        let last_opened = match summary.last_opened {
-            Some(ts) => format_ago(learn::now_unix().saturating_sub(ts)),
-            None => "Not started".to_string(),
+        let (cta, started) = match (summary.last_opened, summary.percent) {
+            (_, 100) => ("Review", true),
+            (Some(_), _) => ("Continue", true),
+            (None, _) => ("Start track", false),
         };
+        let mut meta = format!(
+            "{chapters} chapters · {total} exercises · {}",
+            manifest.language
+        );
+        if let Some(ts) = summary.last_opened {
+            meta.push_str(&format!(
+                " · opened {}",
+                format_ago(learn::now_unix().saturating_sub(ts))
+            ));
+        }
+        let colors = cx.theme().colors();
         v_flex()
             .id(("track", index))
-            .p_4()
-            .gap_2()
             .rounded_md()
             .border_1()
-            .border_color(cx.theme().colors().border)
-            .bg(cx.theme().colors().elevated_surface_background)
+            .border_color(colors.border_variant)
+            .bg(colors.editor_background)
+            .hover(|style| style.border_color(colors.border))
             .child(
-                h_flex()
-                    .justify_between()
+                v_flex()
+                    .p_4()
+                    .gap_1()
                     .child(
                         h_flex()
-                            .gap_2()
-                            .child(Icon::new(IconName::Book).color(Color::Accent))
-                            .child(Headline::new(manifest.title.clone()).size(HeadlineSize::Small)),
+                            .gap_3()
+                            .justify_between()
+                            .child(
+                                Headline::new(manifest.title.clone()).size(HeadlineSize::Small),
+                            )
+                            .child(
+                                Button::new(("open-track", index), cta)
+                                    .style(ButtonStyle::Tinted(TintColor::Accent))
+                                    .end_icon(Icon::new(IconName::ArrowRight).size(IconSize::Small))
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.open_track(index, window, cx)
+                                    })),
+                            ),
                     )
-                    .child(
-                        Button::new(
-                            ("open-track", index),
-                            if summary.last_opened.is_some() {
-                                "Continue"
-                            } else {
-                                "Start"
-                            },
-                        )
-                        .style(ButtonStyle::Filled)
-                        .on_click(cx.listener(
-                            move |this, _, window, cx| this.open_track(index, window, cx),
-                        )),
-                    ),
-            )
-            .child(Label::new(manifest.description.clone()).color(Color::Muted))
-            .child(
-                h_flex()
-                    .gap_3()
-                    .child(
-                        Label::new(format!("{chapters} chapters · {exercises} exercises"))
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(
-                        Label::new(format!("{} XP", summary.xp))
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(
-                        Label::new(format!("Last opened: {last_opened}"))
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    ),
+                    .child(Label::new(meta).size(LabelSize::Small).color(Color::Muted))
+                    .when(!manifest.description.is_empty(), |el| {
+                        el.child(div().pt_2().child(Label::new(manifest.description.clone())))
+                    }),
             )
             .child(
-                h_flex()
+                v_flex()
+                    .px_4()
+                    .py_3()
                     .gap_2()
-                    .child(div().flex_1().child(ProgressBar::new(
+                    .border_t_1()
+                    .border_color(colors.border_variant)
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .child(
+                                Label::new(if started {
+                                    format!("{done} of {total} exercises complete · {} XP", summary.xp)
+                                } else {
+                                    "Not started yet".to_string()
+                                })
+                                .size(LabelSize::Small)
+                                .color(Color::Muted),
+                            )
+                            .child(
+                                Label::new(format!("{}%", summary.percent))
+                                    .size(LabelSize::Small)
+                                    .color(if summary.percent == 100 {
+                                        Color::Success
+                                    } else {
+                                        Color::Default
+                                    }),
+                            ),
+                    )
+                    .child(ProgressBar::new(
                         ("progress", index),
                         summary.percent as f32,
                         100.,
                         cx,
-                    )))
-                    .child(Label::new(format!("{}%", summary.percent)).size(LabelSize::Small)),
+                    )),
+            )
+    }
+
+    fn render_empty(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex()
+            .items_center()
+            .gap_3()
+            .py_12()
+            .rounded_md()
+            .border_1()
+            .border_dashed()
+            .border_color(cx.theme().colors().border_variant)
+            .child(Icon::new(IconName::Book).size(IconSize::Medium).color(Color::Muted))
+            .child(Label::new("No learning tracks installed"))
+            .child(
+                Label::new("Import a track folder that contains a track.toml.")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            )
+            .child(
+                Button::new("empty-add-track", "Add track")
+                    .style(ButtonStyle::Tinted(TintColor::Accent))
+                    .on_click(cx.listener(|this, _, window, cx| this.add_track(window, cx))),
             )
     }
 }
@@ -181,37 +222,67 @@ impl Render for TrackPicker {
             .enumerate()
             .map(|(ix, t)| self.render_track(ix, t, cx).into_any_element())
             .collect::<Vec<_>>();
-        h_flex()
+        let empty = tracks.is_empty();
+        div()
+            .id("track-picker")
             .key_context("TrackPicker")
             .track_focus(&self.focus_handle)
             .size_full()
-            .justify_center()
+            .overflow_y_scroll()
             .bg(cx.theme().colors().editor_background)
             .child(
-                v_flex()
-                    .id("track-picker")
-                    .w(px(640.))
-                    .h_full()
-                    .py_12()
-                    .gap_6()
-                    .overflow_y_scroll()
-                    .child(
-                        v_flex()
-                            .gap_1()
-                            .child(Headline::new("Choose a learning track").size(HeadlineSize::Large))
-                            .child(Label::new("Pick a track to continue where you left off, or import a new one.").color(Color::Muted)),
-                    )
-                    .when_some(self.error.clone(), |el, err| el.child(Label::new(err).color(Color::Error)))
-                    .when(tracks.is_empty(), |el| el.child(Label::new("No tracks installed.").color(Color::Muted)))
-                    .children(tracks)
-                    .child(Divider::horizontal())
-                    .child(
-                        h_flex().child(
-                            Button::new("add-track", "Add track from folder…")
-                                .start_icon(Icon::new(IconName::FolderOpen))
-                                .on_click(cx.listener(|this, _, window, cx| this.add_track(window, cx))),
-                        ),
-                    ),
+                h_flex().w_full().justify_center().child(
+                    v_flex()
+                        .w_full()
+                        .max_w(px(560.))
+                        .px_6()
+                        .pt_24()
+                        .pb_12()
+                        .gap_6()
+                        .child(
+                            h_flex()
+                                .items_end()
+                                .justify_between()
+                                .gap_4()
+                                .child(
+                                    v_flex()
+                                        .gap_1()
+                                        .child(
+                                            Headline::new("Choose a learning track")
+                                                .size(HeadlineSize::Large),
+                                        )
+                                        .child(
+                                            Label::new("Pick up where you left off, or start something new.")
+                                                .color(Color::Muted),
+                                        ),
+                                )
+                                .when(!empty, |el| {
+                                    el.child(
+                                        Button::new("add-track", "Add track")
+                                            .style(ButtonStyle::Subtle)
+                                            .start_icon(
+                                                Icon::new(IconName::Plus).size(IconSize::Small),
+                                            )
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.add_track(window, cx)
+                                            })),
+                                    )
+                                }),
+                        )
+                        .when_some(self.error.clone(), |el, err| {
+                            el.child(
+                                h_flex()
+                                    .gap_2()
+                                    .p_2()
+                                    .rounded_md()
+                                    .bg(cx.theme().status().error_background)
+                                    .child(Icon::new(IconName::XCircle).size(IconSize::Small).color(Color::Error))
+                                    .child(Label::new(err).size(LabelSize::Small)),
+                            )
+                        })
+                        .when(empty, |el| el.child(self.render_empty(cx)))
+                        .child(v_flex().gap_3().children(tracks)),
+                ),
             )
     }
 }
