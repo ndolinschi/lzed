@@ -34,6 +34,16 @@ LearnZed is an interactive learning app, similar to DataCamp, built on top of th
 
 LearnZed keeps its config and data in separate `learnzed` directories, so it never touches an existing Zed install. The binary is called `learnzed`.
 
+## Download
+
+Prebuilt **unsigned** builds are attached to [GitHub Releases](https://github.com/ndolinschi/lzed/releases):
+
+- Linux x86_64: `learnzed-linux-x86_64.tar.gz`
+- macOS Apple Silicon: `learnzed-macos-aarch64.tar.gz` (unsigned, so run `xattr -dr com.apple.quarantine learnzed` before the first launch)
+- Windows x86_64: `learnzed-windows-x86_64.zip` (unsigned, so SmartScreen may warn)
+
+Exercises need Python 3 with `numpy`. Releases are built by `.github/workflows/learnzed_release.yml` when a `v*` tag is pushed.
+
 ## Quick start
 
 Requirements: a Rust toolchain (via rustup), Zed's usual [build dependencies](docs/src/development), and **Python 3 with `numpy`** for the exercise checker (`pip install numpy`).
