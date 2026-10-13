@@ -21,7 +21,7 @@
 | M7-01 | Hint (XP cost), Reset (confirm), Next (after pass) | done |
 | M7-02 | Auto-trust bundled tracks (D9) | todo (proposed) |
 | M7-03 | gpui tests for learn_ui (picker/panel) | done |
-| M7-04 | Update script/bundle-* for `learnzed` bin, desktop file, icons | todo |
+| M7-04 | Update script/bundle-* for `learnzed` bin, desktop file, icons | done |
 | M7-05 | Award/derive skills for already-completed tracks | done |
 
 ## Approved by user (2026-10-13): AI skills for Zed's agent chat

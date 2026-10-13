@@ -11,9 +11,9 @@ State
 In-flight: none.
 
 Next 3 actions
-1. M7-04: packaging scripts binary rename (script/bundle-*, desktop file, icons) for `learnzed` bin.
-2. M7-02: D9 auto-trust for bundled tracks.
-3. AI-1 / AI-2 / AI-3: Zed agent learning rules, learning MCP/tools, and slash commands.
+1. M7-02: D9 auto-trust for bundled tracks.
+2. AI-1 / AI-2 / AI-3: Zed agent learning rules, learning MCP/tools, and slash commands.
+3. Dev build (cargo build -p zed) and UI screenshots via scrot.
 
 
 Known risks / notes
