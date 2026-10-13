@@ -5,7 +5,10 @@ use gpui::{
 use learn::{TrackSummary, TrackWorkspace};
 use ui::{Divider, ProgressBar, prelude::*};
 use util::ResultExt as _;
-use workspace::{OpenMode, Workspace, item::{Item, ItemEvent}};
+use workspace::{
+    OpenMode, Workspace,
+    item::{Item, ItemEvent},
+};
 
 /// Full-pane learning track picker shown on startup (AC1).
 pub struct TrackPicker {
@@ -41,13 +44,17 @@ impl TrackPicker {
             return;
         }
         let dir = summary.workspace_dir.clone();
-        self.workspace
-            .update(cx, |workspace, cx| {
-                workspace
-                    .open_workspace_for_paths(OpenMode::Activate, vec![dir], window, cx)
-                    .detach_and_log_err(cx);
-            })
-            .log_err();
+        // Deferred: the workspace reads its items (including this picker) while opening.
+        let workspace = self.workspace.clone();
+        window.defer(cx, move |window, cx| {
+            workspace
+                .update(cx, |workspace, cx| {
+                    workspace
+                        .open_workspace_for_paths(OpenMode::Activate, vec![dir], window, cx)
+                        .detach_and_log_err(cx);
+                })
+                .log_err();
+        });
     }
 
     fn add_track(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -77,7 +84,12 @@ impl TrackPicker {
         .detach();
     }
 
-    fn render_track(&self, index: usize, summary: &TrackSummary, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_track(
+        &self,
+        index: usize,
+        summary: &TrackSummary,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let manifest = &summary.track.manifest;
         let exercises = summary.track.exercises().count();
         let chapters = summary.track.chapters.len();
@@ -103,32 +115,49 @@ impl TrackPicker {
                             .child(Headline::new(manifest.title.clone()).size(HeadlineSize::Small)),
                     )
                     .child(
-                        Button::new(("open-track", index), if summary.last_opened.is_some() { "Continue" } else { "Start" })
-                            .style(ButtonStyle::Filled)
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.open_track(index, window, cx)
-                            })),
+                        Button::new(
+                            ("open-track", index),
+                            if summary.last_opened.is_some() {
+                                "Continue"
+                            } else {
+                                "Start"
+                            },
+                        )
+                        .style(ButtonStyle::Filled)
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| this.open_track(index, window, cx),
+                        )),
                     ),
             )
             .child(Label::new(manifest.description.clone()).color(Color::Muted))
             .child(
                 h_flex()
                     .gap_3()
-                    .child(Label::new(format!("{chapters} chapters · {exercises} exercises")).size(LabelSize::Small).color(Color::Muted))
-                    .child(Label::new(format!("{} XP", summary.xp)).size(LabelSize::Small).color(Color::Muted))
-                    .child(Label::new(format!("Last opened: {last_opened}")).size(LabelSize::Small).color(Color::Muted)),
+                    .child(
+                        Label::new(format!("{chapters} chapters · {exercises} exercises"))
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .child(
+                        Label::new(format!("{} XP", summary.xp))
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .child(
+                        Label::new(format!("Last opened: {last_opened}"))
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    ),
             )
             .child(
                 h_flex()
                     .gap_2()
-                    .child(
-                        div().flex_1().child(ProgressBar::new(
-                            ("progress", index),
-                            summary.percent as f32,
-                            100.,
-                            cx,
-                        )),
-                    )
+                    .child(div().flex_1().child(ProgressBar::new(
+                        ("progress", index),
+                        summary.percent as f32,
+                        100.,
+                        cx,
+                    )))
                     .child(Label::new(format!("{}%", summary.percent)).size(LabelSize::Small)),
             )
     }

@@ -103,7 +103,8 @@ pub fn installed_tracks(home: &Path) -> Vec<TrackSummary> {
         })
         .map(|track| {
             let workspace_dir = home.join(track.id());
-            let progress = Progress::load(&TrackWorkspace::learn_dir(&workspace_dir).join("progress.json"));
+            let progress =
+                Progress::load(&TrackWorkspace::learn_dir(&workspace_dir).join("progress.json"));
             TrackSummary {
                 percent: progress.percent(&track),
                 xp: progress.total_xp(),

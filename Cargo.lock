@@ -9815,6 +9815,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "learn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "paths",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 0.9.8",
+]
+
+[[package]]
+name = "learn_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "learn",
+ "log",
+ "markdown",
+ "project",
+ "task",
+ "ui",
+ "util",
+ "workspace",
+]
+
+[[package]]
 name = "leb128"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -22458,6 +22487,7 @@ dependencies = [
  "language_selector",
  "language_tools",
  "languages",
+ "learn_ui",
  "line_ending_selector",
  "log",
  "lsp_command_selector",

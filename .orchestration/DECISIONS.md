@@ -1,6 +1,11 @@
 # DECISIONS
-- D1 (accepted, from BRIEF): new code in crates/learn + crates/learn_ui; hooks marked `// LEARNZED:`.
-- D2 (proposed): Submit/Check runs headless (util::command::new_command), not in terminal; Run Code uses Zed tasks in terminal.
-- D3 (proposed): App isolation. Options: (a) dev via `--user-data-dir` only (no code change); (b) change paths::APP_NAME to "LearnZed" (touches paths + release_channel display names, affects all dirs). Recommend (a) for M1/M2, (b) later. Needs user/orchestrator approval.
-- D4 (proposed): Track Picker as full-pane Item modeled on workspace/src/welcome.rs WelcomePage (not a modal), using a Picker list inside.
-- D5 (proposed): Sample tracks bundled under assets/learn/tracks, copied/registered at first run.
+- D1 (accepted): new code in crates/learn (logic, no UI) + crates/learn_ui (GPUI); hooks into Zed marked `// LEARNZED:`.
+- D2 (accepted): Submit/Check runs the runner headless (std::process on a background thread, 10s timeout + kill, JSON parse); Run Code uses Zed's task terminal (`Workspace::spawn_in_terminal`).
+- D3 (accepted): app identity separated in code: `paths::APP_NAME = "LearnZed"` (config ~/.config/learnzed, data ~/.local/share/learnzed, db under it), release-channel display names "LearnZed*", app ids `dev.learnzed.LearnZed*`. Zed enforces bin name == APP_NAME, so the `zed` crate's binary is renamed `learnzed` (packaging scripts script/bundle-* still say `--bin zed`; not updated, out of MVP scope).
+- D4 (accepted): Track Picker is a full-pane workspace Item (`TrackPicker`), modeled on WelcomePage; shown in a fresh window when nothing is restored (replaces onboarding + empty editor). Also reachable via `learn: open track picker`.
+- D5 (accepted): sample track + learn_runner.py are compiled into the binary (`crates/learn/src/bundled.rs`, include_bytes) and extracted to `~/LearnZed/.tracks/` on each launch. `$LEARNZED_HOME` overrides `~/LearnZed`.
+- D6 (accepted): the workspace is self-contained: track definition copied to `.learn/track/` (setup/solution/check, refreshed when track version changes), runner at `.learn/learn_runner.py`. Learner files are never overwritten except by Reset.
+- D7 (accepted): BRIEF's "Chapters → Lessons → Exercises": track format v1 has only chapters/exercises, so the tree is two-level. Lessons can be added as a v2 format change.
+- D8 (accepted): unlocking: an exercise is unlocked if first, already started, or previous passed. XP awarded once on first pass: `xp - hints_used * hint_xp_cost` (default 30, `hint_xp_cost` in exercise.toml).
+- D9 (proposed): Zed's Restricted Mode trust prompt appears when opening ~/LearnZed/<track>. Kept (security feature). Proposal: auto-trust bundled tracks only.
+- D10 (accepted): Learn panel activation priority 10 (must be unique); added after the other panels in `initialize_panels` with `starts_open = is_track`, so it is the active left-dock panel in track workspaces (Project Panel stays registered and toggleable).

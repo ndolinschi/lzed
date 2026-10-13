@@ -150,7 +150,11 @@ impl Progress {
 
     /// First exercise that is not passed (or the last exercise when all passed).
     pub fn resume_exercise<'a>(&self, track: &'a Track) -> Option<&'a crate::Exercise> {
-        if let Some(cur) = self.current_exercise.as_deref().and_then(|id| track.exercise(id)) {
+        if let Some(cur) = self
+            .current_exercise
+            .as_deref()
+            .and_then(|id| track.exercise(id))
+        {
             if self.status(cur.id()) != ExerciseStatus::Passed {
                 return Some(cur);
             }
@@ -184,7 +188,10 @@ mod tests {
         std::fs::write(&path, "{not json").unwrap();
         assert_eq!(Progress::load(&path), Progress::default());
         assert!(path.with_extension("json.bak").exists());
-        assert_eq!(Progress::load(&dir.path().join("missing.json")), Progress::default());
+        assert_eq!(
+            Progress::load(&dir.path().join("missing.json")),
+            Progress::default()
+        );
     }
 
     #[test]

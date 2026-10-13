@@ -41,3 +41,9 @@ All paths relative to repo root; line numbers are approximate anchors (may drift
 ## Workspace layout
 - Cargo.toml: `[workspace] members = [...]`, `default-members = ["crates/zed"]`. New crates must be added to members + workspace deps.
 - 249 crates under crates/. Agent guidance files: AGENTS.md, CLAUDE.md, GEMINI.md (read before coding).
+
+## LearnZed code (added in MVP)
+- crates/learn/src/: track.rs (format v1, `load_track`), workspace.rs (`TrackWorkspace::materialize/open/reset_exercise/python`), progress.rs (`Progress`), runner.rs (`check_exercise`, `run_command`, `run_with_timeout`), registry.rs (`learn_home`, `install_bundled_tracks`, `installed_tracks`, `add_track_from_folder`), bundled.rs (include_bytes list — regenerate when adding track files).
+- crates/learn/runner/learn_runner.py; crates/learn/tracks/intro-to-python/.
+- crates/learn_ui/src/: learn_ui.rs (`init`, `show_track_picker`, actions `learn::ToggleFocus`, `learn::OpenTrackPicker`), track_picker.rs (`TrackPicker` Item), learn_panel.rs (`LearnPanel` Panel).
+- Hooks (`// LEARNZED:`): crates/zed/src/main.rs (`learn_ui::init`, startup branch in `restore_or_create_workspace`), crates/zed/src/zed.rs (`initialize_panels`), crates/zed/Cargo.toml (bin `learnzed`), crates/paths/src/paths.rs (`APP_NAME`), crates/release_channel/src/lib.rs (names/app ids).

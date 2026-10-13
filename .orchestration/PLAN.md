@@ -1,19 +1,24 @@
-# PLAN
-Milestones
-- M0 Recon + scaffolding docs — DONE (CODEMAP.md).
-- M1 Core model, no UI: crate `learn` (track format parsing, workspace materialization, progress.json, runner contract + bundled learn_runner.py, sample track). Plus app isolation (data dir / app name) decision.
-- M2 UI: crate `learn_ui` (Track Picker AC1, Learn panel AC3, Run/Submit wiring AC4).
-- M3 Polish/stretch (hints XP cost, git import, REPL).
+# PLAN (milestones match BRIEF.md)
+- M0 Recon → CODEMAP.md — DONE
+- M1 App identity + data dir separation — DONE (D3)
+- M2 crates/learn: parsing, materialization, progress.json — DONE (13 unit tests)
+- M3 Track picker on launch (AC1) — DONE (git import = stretch, not done)
+- M4 Learn panel (AC3) — DONE
+- M5 Runner + check integration (AC4) — DONE (REPL = stretch, not done)
+- M6 Sample track (AC5) + E2E script — DONE (see E2E below)
+- M7 Polish: XP, hints, reset, next, status icons — DONE (basic)
 
-Crate layout (proposed, see DECISIONS.md)
-- crates/learn: pure logic, no GPUI view code (gpui only for App/Task if needed). Tests with `cargo test -p learn`.
-- crates/learn_ui: GPUI views, depends on learn, workspace, picker, markdown, ui.
-- assets/learn/learn_runner.py and tracks/intro-to-python/ (bundled sample track).
+## Build / run (dev profile only)
+    source ~/.cargo/env
+    CARGO_PROFILE_DEV_DEBUG=0 cargo test -p learn
+    CARGO_PROFILE_DEV_DEBUG=0 cargo check -p learn_ui
+    CARGO_PROFILE_DEV_DEBUG=0 cargo build -p zed      # binary: target/debug/learnzed
+    ZED_ALLOW_EMULATED_GPU=1 target/debug/learnzed --user-data-dir /tmp/lz-data
+(Box has no GPU: mesa-vulkan-drivers/lavapipe installed; screenshots need `scrot -u` — root-window captures can be stale.)
 
-Manual E2E check (end of M2; full build by one agent only)
-1. `cargo run -- --user-data-dir /tmp/learnzed-e2e` with no restorable workspace -> Track Picker shows "Intro to Python" 0%.
-2. Open -> ~/LearnZed/intro-to-python/ created with .learn/{progress.json,track.lock}; Learn panel on left dock.
-3. Select "Subsetting 2D NumPy Arrays" -> script.py opens, Markdown instructions render.
-4. Run Code -> output in terminal. Submit with starter -> fail w/ messages. Paste solution -> pass, XP awarded, next unlocked, progress.json updated.
-5. Restart -> code preserved; Reset restores starter.
-(Requires python3 + numpy on the test machine.)
+## Manual E2E (verified 2026-10-13, screenshots in .orchestration/screenshots/)
+1. Fresh `--user-data-dir`, no ~/LearnZed → Track Picker shows "Intro to Python 0%" (01).
+2. Start → ~/LearnZed/intro-to-python/ with .learn/{track.lock,track/,runs/,learn_runner.py}; Learn panel active in left dock, first exercise opened (02). Restricted-mode prompt → Trust.
+3. Subsetting 2D: Submit starter → "Incorrect submission" + per-check messages (03).
+4. Type solution → Submit → "All checks passed +100 XP", 100% (04). Run Code → output in terminal (05).
+5. progress.json updated; reopening keeps code; Reset restores starter (unit-tested; UI prompt).

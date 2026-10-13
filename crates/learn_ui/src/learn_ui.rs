@@ -6,7 +6,7 @@ mod track_picker;
 pub use learn_panel::LearnPanel;
 pub use track_picker::TrackPicker;
 
-use gpui::{App, Window, actions};
+use gpui::{App, AppContext as _, Window, actions};
 use workspace::Workspace;
 
 actions!(
@@ -35,7 +35,11 @@ pub fn init(cx: &mut App) {
 }
 
 /// Show the track picker as the active item of the workspace.
-pub fn show_track_picker(workspace: &mut Workspace, window: &mut Window, cx: &mut gpui::Context<Workspace>) {
+pub fn show_track_picker(
+    workspace: &mut Workspace,
+    window: &mut Window,
+    cx: &mut gpui::Context<Workspace>,
+) {
     let weak = cx.entity().downgrade();
     let picker = cx.new(|cx| TrackPicker::new(weak, cx));
     workspace.add_item_to_active_pane(Box::new(picker), None, true, window, cx);

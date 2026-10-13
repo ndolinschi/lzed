@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use gpui::{
-    Action, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    Pixels, PromptLevel, Render, Subscription, Task, WeakEntity, Window, px,
+    Action, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Pixels,
+    PromptLevel, Render, Subscription, Task, WeakEntity, Window, px,
 };
 use learn::{
     CheckOutcome, Exercise, ExerciseStatus, Progress, TrackWorkspace,
@@ -46,7 +46,7 @@ pub struct LearnPanel {
 impl LearnPanel {
     pub fn load(
         workspace: WeakEntity<Workspace>,
-        mut cx: AsyncWindowContext,
+        cx: AsyncWindowContext,
     ) -> Task<anyhow::Result<Entity<Self>>> {
         cx.spawn(async move |cx| {
             workspace.update_in(cx, |workspace, window, cx| {
@@ -115,10 +115,15 @@ impl LearnPanel {
             self.progress = track.load_progress();
             if !self.auto_opened {
                 self.auto_opened = true;
-                let resume = self.progress.resume_exercise(&track.track).map(|e| e.id().to_string());
+                let resume = self
+                    .progress
+                    .resume_exercise(&track.track)
+                    .map(|e| e.id().to_string());
                 cx.defer_in(window, move |this, window, cx| {
                     this.workspace
-                        .update(cx, |workspace, cx| workspace.focus_panel::<LearnPanel>(window, cx))
+                        .update(cx, |workspace, cx| {
+                            workspace.focus_panel::<LearnPanel>(window, cx)
+                        })
                         .ok();
                     if let Some(id) = resume {
                         this.select_exercise(&id, window, cx);
@@ -205,7 +210,9 @@ impl LearnPanel {
             let buffer = open.await?;
             let dirty = buffer.read_with(cx, |b, _| b.is_dirty());
             if dirty {
-                project.update(cx, |p, cx| p.save_buffer(buffer, cx)).await?;
+                project
+                    .update(cx, |p, cx| p.save_buffer(buffer, cx))
+                    .await?;
             }
             Ok(())
         })
@@ -263,7 +270,9 @@ impl LearnPanel {
             save.await.log_err();
             let ex = exercise.clone();
             let outcome = cx
-                .background_spawn(async move { runner::check_exercise(&track, &ex, DEFAULT_TIMEOUT) })
+                .background_spawn(
+                    async move { runner::check_exercise(&track, &ex, DEFAULT_TIMEOUT) },
+                )
                 .await;
             this.update(cx, |this, cx| {
                 this.checking = false;
@@ -275,7 +284,10 @@ impl LearnPanel {
                     exercise.manifest.hint_xp_cost,
                 );
                 this.save_progress();
-                this.submit = Some(SubmitState { outcome, xp_awarded });
+                this.submit = Some(SubmitState {
+                    outcome,
+                    xp_awarded,
+                });
                 cx.notify();
             })
             .ok();
@@ -344,14 +356,16 @@ impl LearnPanel {
             .gap_2()
             .child(Label::new("This folder is not a learning track."))
             .child(
-                Button::new("open-picker", "Choose a track…").on_click(cx.listener(|_, _, window, cx| {
-                    window.dispatch_action(crate::OpenTrackPicker.boxed_clone(), cx)
-                })),
+                Button::new("open-picker", "Choose a track…").on_click(cx.listener(
+                    |_, _, window, cx| {
+                        window.dispatch_action(crate::OpenTrackPicker.boxed_clone(), cx)
+                    },
+                )),
             )
             .into_any_element()
     }
 
-    fn render_tree(&self, track: &TrackWorkspace, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_tree(&self, track: &TrackWorkspace, cx: &mut Context<Self>) -> AnyElement {
         let mut items = Vec::new();
         for (cix, chapter) in track.track.chapters.iter().enumerate() {
             items.push(
@@ -385,11 +399,13 @@ impl LearnPanel {
                             h_flex()
                                 .w_full()
                                 .justify_between()
-                                .child(Label::new(exercise.manifest.title.clone()).color(if unlocked {
-                                    Color::Default
-                                } else {
-                                    Color::Disabled
-                                }))
+                                .child(Label::new(exercise.manifest.title.clone()).color(
+                                    if unlocked {
+                                        Color::Default
+                                    } else {
+                                        Color::Disabled
+                                    },
+                                ))
                                 .child(
                                     Label::new(format!("{} XP", exercise.manifest.xp))
                                         .size(LabelSize::XSmall)
@@ -403,12 +419,16 @@ impl LearnPanel {
                 );
             }
         }
-        v_flex().gap_0p5().children(items)
+        v_flex().gap_0p5().children(items).into_any_element()
     }
 
     fn render_result(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         if self.checking {
-            return Some(Label::new("Checking your code…").color(Color::Muted).into_any_element());
+            return Some(
+                Label::new("Checking your code…")
+                    .color(Color::Muted)
+                    .into_any_element(),
+            );
         }
         let state = self.submit.as_ref()?;
         let colors = cx.theme().colors();
@@ -420,7 +440,10 @@ impl LearnPanel {
                         .child(Icon::new(IconName::Check).color(Color::Success))
                         .child(Label::new("Great work! All checks passed.").color(Color::Success))
                         .when(state.xp_awarded > 0, |el| {
-                            el.child(Label::new(format!("+{} XP", state.xp_awarded)).color(Color::Accent))
+                            el.child(
+                                Label::new(format!("+{} XP", state.xp_awarded))
+                                    .color(Color::Accent),
+                            )
                         })
                 } else {
                     h_flex()
@@ -432,13 +455,26 @@ impl LearnPanel {
                     h_flex()
                         .gap_2()
                         .items_start()
-                        .child(Icon::new(IconName::Close).size(IconSize::Small).color(Color::Error))
-                        .child(Label::new(c.message.clone()).size(LabelSize::Small))
+                        .child(
+                            Icon::new(IconName::Close)
+                                .size(IconSize::Small)
+                                .color(Color::Error),
+                        )
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .child(Label::new(c.message.clone()).size(LabelSize::Small)),
+                        )
                 });
                 let output = (!result.stdout.trim().is_empty()).then(|| {
                     v_flex()
                         .gap_1()
-                        .child(Label::new("Output").size(LabelSize::XSmall).color(Color::Muted))
+                        .child(
+                            Label::new("Output")
+                                .size(LabelSize::XSmall)
+                                .color(Color::Muted),
+                        )
                         .child(
                             div()
                                 .p_2()
@@ -449,7 +485,11 @@ impl LearnPanel {
                                 .child(result.stdout.trim().to_string()),
                         )
                 });
-                v_flex().gap_2().child(header).children(checks).children(output)
+                v_flex()
+                    .gap_2()
+                    .child(header)
+                    .children(checks)
+                    .children(output)
             }
             Err(err) => v_flex()
                 .gap_2()
@@ -465,7 +505,12 @@ impl LearnPanel {
         )
     }
 
-    fn render_exercise(&self, exercise: &Exercise, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_exercise(
+        &self,
+        exercise: &Exercise,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let p = self.progress.exercise(exercise.id());
         let hints_left = exercise.hints.len().saturating_sub(p.hints_used as usize);
         let passed = p.status == ExerciseStatus::Passed;
@@ -480,7 +525,9 @@ impl LearnPanel {
                 h_flex()
                     .gap_2()
                     .child(Headline::new(exercise.manifest.title.clone()).size(HeadlineSize::Small))
-                    .when(passed, |el| el.child(Icon::new(IconName::Check).color(Color::Success))),
+                    .when(passed, |el| {
+                        el.child(Icon::new(IconName::Check).color(Color::Success))
+                    }),
             )
             .children(self.markdown.clone().map(|md| {
                 MarkdownElement::new(md, MarkdownStyle::themed(MarkdownFont::Agent, window, cx))
@@ -525,6 +572,7 @@ impl LearnPanel {
                     }),
             )
             .children(self.render_result(cx))
+            .into_any_element()
     }
 }
 
@@ -544,7 +592,10 @@ impl Render for LearnPanel {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(Headline::new(track.track.manifest.title.clone()).size(HeadlineSize::XSmall))
+                            .child(
+                                Headline::new(track.track.manifest.title.clone())
+                                    .size(HeadlineSize::XSmall),
+                            )
                             .child(
                                 h_flex()
                                     .gap_2()
@@ -555,9 +606,12 @@ impl Render for LearnPanel {
                                         cx,
                                     )))
                                     .child(
-                                        Label::new(format!("{percent}% · {} XP", self.progress.total_xp()))
-                                            .size(LabelSize::Small)
-                                            .color(Color::Muted),
+                                        Label::new(format!(
+                                            "{percent}% · {} XP",
+                                            self.progress.total_xp()
+                                        ))
+                                        .size(LabelSize::Small)
+                                        .color(Color::Muted),
                                     ),
                             ),
                     )
@@ -627,6 +681,6 @@ impl Panel for LearnPanel {
     }
 
     fn activation_priority(&self) -> u32 {
-        0
+        10
     }
 }

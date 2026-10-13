@@ -1,4 +1,7 @@
 //! Runner process contract: spawn, enforce timeout, parse JSON result.
+// Runner processes are spawned from a background thread with a blocking
+// timeout loop; std::process is intentional here (no smol conversion).
+#![allow(clippy::disallowed_methods)]
 
 use crate::{Exercise, TrackWorkspace};
 use serde::{Deserialize, Serialize};
@@ -33,7 +36,11 @@ pub struct CheckResult {
 pub enum RunnerError {
     Spawn(String),
     Timeout(Duration),
-    InvalidOutput { stdout: String, stderr: String, error: String },
+    InvalidOutput {
+        stdout: String,
+        stderr: String,
+        error: String,
+    },
 }
 
 impl std::fmt::Display for RunnerError {
@@ -46,7 +53,11 @@ impl std::fmt::Display for RunnerError {
                 d.as_secs()
             ),
             RunnerError::InvalidOutput { error, stderr, .. } => {
-                write!(f, "The runner returned invalid output ({error}). {}", stderr.trim())
+                write!(
+                    f,
+                    "The runner returned invalid output ({error}). {}",
+                    stderr.trim()
+                )
             }
         }
     }
@@ -63,12 +74,17 @@ pub fn parse_check_output(stdout: &str, stderr: &str) -> CheckOutcome {
 }
 
 /// Run a process to completion, killing it after `timeout`. Returns (stdout, stderr).
-pub fn run_with_timeout(mut command: Command, timeout: Duration) -> Result<(String, String), RunnerError> {
+pub fn run_with_timeout(
+    mut command: Command,
+    timeout: Duration,
+) -> Result<(String, String), RunnerError> {
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|e| RunnerError::Spawn(e.to_string()))?;
+    let mut child = command
+        .spawn()
+        .map_err(|e| RunnerError::Spawn(e.to_string()))?;
     let mut out = child.stdout.take().expect("piped");
     let mut err = child.stderr.take().expect("piped");
     let out_thread = std::thread::spawn(move || {
@@ -94,7 +110,10 @@ pub fn run_with_timeout(mut command: Command, timeout: Duration) -> Result<(Stri
             Err(e) => return Err(RunnerError::Spawn(e.to_string())),
         }
     }
-    Ok((out_thread.join().unwrap_or_default(), err_thread.join().unwrap_or_default()))
+    Ok((
+        out_thread.join().unwrap_or_default(),
+        err_thread.join().unwrap_or_default(),
+    ))
 }
 
 /// Program and arguments for `run` mode (used for the terminal "Run Code").
@@ -105,7 +124,9 @@ pub fn run_command(ws: &TrackWorkspace, exercise: &Exercise) -> (PathBuf, Vec<St
             ws.runner_script().to_string_lossy().into_owned(),
             "run".into(),
             "--setup".into(),
-            ws.source_file(exercise, "setup.py").to_string_lossy().into_owned(),
+            ws.source_file(exercise, "setup.py")
+                .to_string_lossy()
+                .into_owned(),
             "--script".into(),
             ws.user_file(exercise).to_string_lossy().into_owned(),
         ],
@@ -128,7 +149,8 @@ pub fn check_exercise(ws: &TrackWorkspace, exercise: &Exercise, timeout: Duratio
         .arg(ws.source_file(exercise, "solution.py"))
         .arg("--check")
         .arg(ws.source_file(exercise, "check.py"));
-    let outcome = run_with_timeout(command, timeout).and_then(|(out, err)| parse_check_output(&out, &err));
+    let outcome =
+        run_with_timeout(command, timeout).and_then(|(out, err)| parse_check_output(&out, &err));
     let log = match &outcome {
         Ok(result) => serde_json::to_string_pretty(result).unwrap_or_default(),
         Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
@@ -159,7 +181,10 @@ mod tests {
         .unwrap();
         assert!(!r.passed);
         assert_eq!(r.checks[0].message, "m");
-        assert!(matches!(parse_check_output("Traceback", "boom"), Err(RunnerError::InvalidOutput { .. })));
+        assert!(matches!(
+            parse_check_output("Traceback", "boom"),
+            Err(RunnerError::InvalidOutput { .. })
+        ));
     }
 
     #[cfg(unix)]
@@ -191,13 +216,20 @@ mod tests {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
-        let track = crate::load_track(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tracks/intro-to-python")).unwrap();
+        let track = crate::load_track(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("tracks/intro-to-python"),
+        )
+        .unwrap();
         let ws = TrackWorkspace::materialize(&track, dir.path()).unwrap();
         let ex = ws.track.exercise("subsetting-2d").unwrap().clone();
 
         let r = check_exercise(&ws, &ex, DEFAULT_TIMEOUT).unwrap();
         assert!(!r.passed);
-        assert!(r.checks.iter().any(|c| !c.passed && c.message.contains("np_weight_lb")));
+        assert!(
+            r.checks
+                .iter()
+                .any(|c| !c.passed && c.message.contains("np_weight_lb"))
+        );
         assert!(ws.runs_dir().join("subsetting-2d.json").is_file());
 
         std::fs::copy(ws.source_file(&ex, "solution.py"), ws.user_file(&ex)).unwrap();

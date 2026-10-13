@@ -192,7 +192,10 @@ mod tests {
         assert!(starter.contains("np_baseball = np.array(baseball)"));
         assert!(root.join(".learn/runs").is_dir());
         let lock = ws.lock().unwrap();
-        assert_eq!((lock.id.as_str(), lock.version.as_str()), ("intro-to-python", "1.0.0"));
+        assert_eq!(
+            (lock.id.as_str(), lock.version.as_str()),
+            ("intro-to-python", "1.0.0")
+        );
 
         std::fs::write(&file, "print('mine')").unwrap();
         let ws = TrackWorkspace::materialize(&track, &root).unwrap();
@@ -207,7 +210,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let track = sample();
         TrackWorkspace::materialize(&track, dir.path()).unwrap();
-        let mut other = track.clone();
+        let mut other = track;
         other.manifest.id = "other".into();
         assert!(TrackWorkspace::materialize(&other, dir.path()).is_err());
     }

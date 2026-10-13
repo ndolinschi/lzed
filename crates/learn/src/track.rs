@@ -263,12 +263,21 @@ mod tests {
         assert_eq!(track.chapters.len(), 2);
         assert_eq!(track.chapters[1].manifest.title, "NumPy");
         let ex = track.exercise("subsetting-2d").unwrap();
-        assert_eq!(ex.user_file(), Path::new("02-numpy/02-subsetting-2d/script.py"));
+        assert_eq!(
+            ex.user_file(),
+            Path::new("02-numpy/02-subsetting-2d/script.py")
+        );
         assert_eq!(ex.hints.len(), 3);
         assert!(ex.instructions.contains("np_weight_lb"));
-        assert_eq!(track.next_exercise("numpy-arrays").unwrap().id(), "subsetting-2d");
+        assert_eq!(
+            track.next_exercise("numpy-arrays").unwrap().id(),
+            "subsetting-2d"
+        );
         assert!(track.next_exercise("subsetting-2d").is_none());
-        assert_eq!(track.previous_exercise("variables").unwrap().id(), "hello-python");
+        assert_eq!(
+            track.previous_exercise("variables").unwrap().id(),
+            "hello-python"
+        );
         let setup = std::fs::read_to_string(track.exercise_source(ex, "setup.py")).unwrap();
         assert!(setup.contains("baseball"));
     }
