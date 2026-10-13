@@ -178,7 +178,7 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         install_bundled_tracks(home.path()).unwrap();
         let tracks = installed_tracks(home.path());
-        assert_eq!(tracks.len(), 4);
+        assert_eq!(tracks.len(), 9);
         let s = tracks
             .iter()
             .find(|t| t.track.id() == "intro-to-python")

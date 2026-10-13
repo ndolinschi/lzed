@@ -1,0 +1,1 @@
+An AI assistant wrote `stats.py` to compute a moving average and group orders. It looks fine and even runs, but it contains **three planted bugs**. Reviewing AI output line by line is a core skill: plausible is not the same as correct.

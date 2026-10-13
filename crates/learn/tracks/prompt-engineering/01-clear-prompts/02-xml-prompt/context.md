@@ -1,0 +1,1 @@
+A good prompt template keeps its parts in separate XML tags: the instructions, the input data (with a `{{PLACEHOLDER}}` variable your code fills in) and an example. Asking for the answer inside a tag such as `<summary>` makes the output easy to parse.

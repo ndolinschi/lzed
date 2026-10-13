@@ -1,0 +1,6 @@
+id = "permissions"
+title = "Project Permissions"
+xp = 100
+kind = "static"
+language = "json"
+file = "settings.json"

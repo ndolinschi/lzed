@@ -131,6 +131,8 @@ pub fn run_command(ws: &TrackWorkspace, exercise: &Exercise) -> (PathBuf, Vec<St
             ws.user_file(exercise).to_string_lossy().into_owned(),
             "--language".into(),
             exercise.manifest.language.clone(),
+            "--kind".into(),
+            exercise.manifest.kind.clone(),
         ],
     )
 }
@@ -152,7 +154,14 @@ pub fn check_exercise(ws: &TrackWorkspace, exercise: &Exercise, timeout: Duratio
         .arg("--check")
         .arg(ws.source_file(exercise, "check.py"))
         .arg("--language")
-        .arg(&exercise.manifest.language);
+        .arg(&exercise.manifest.language)
+        .arg("--kind")
+        .arg(&exercise.manifest.kind);
+    if exercise.is_review() {
+        command
+            .arg("--bugs")
+            .arg(ws.source_file(exercise, "bugs.toml"));
+    }
     let outcome =
         run_with_timeout(command, timeout).and_then(|(out, err)| parse_check_output(&out, &err));
     let log = match &outcome {
@@ -281,5 +290,46 @@ mod tests {
                 assert!(r.passed, "solution of {} failed: {r:?}", ex.id());
             }
         }
+    }
+
+    /// Review exercises: each planted bug needs a comment on its line naming it.
+    #[test]
+    fn review_exercise_checks_planted_bugs() {
+        if !Command::new("python3")
+            .args(["-c", "import tomllib"])
+            .status()
+            .is_ok_and(|s| s.success())
+        {
+            eprintln!("skipping: python3 >= 3.11 not available");
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let track =
+            crate::load_track(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tracks/review-ai-code"))
+                .unwrap();
+        let ws = TrackWorkspace::materialize(&track, dir.path()).unwrap();
+        let ex = ws.track.exercise("python-bugs").unwrap().clone();
+        assert!(ex.is_review());
+        assert!(dir.path().join(ex.review_file().unwrap()).is_file());
+
+        let check = |review: &str| {
+            std::fs::write(ws.user_file(&ex), review).unwrap();
+            check_exercise(&ws, &ex, DEFAULT_TIMEOUT).unwrap()
+        };
+        // Right line, but the comment doesn't name the problem; other bugs missed.
+        let r = check("L4: looks odd\n");
+        assert!(!r.passed);
+        assert!(
+            r.checks
+                .iter()
+                .any(|c| !c.passed && c.message.contains("didn't name"))
+        );
+        // Right keyword on the wrong line doesn't count.
+        let r = check("L1: off-by-one\nL10: mutable default\nL15: empty input\n");
+        assert!(!r.passed);
+        let r = check(
+            "L4: off-by-one, misses the last window\n- L10: mutable default dict is shared\nL16-17: crashes on empty list\n",
+        );
+        assert!(r.passed, "{r:?}");
     }
 }

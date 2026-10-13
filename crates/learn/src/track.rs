@@ -43,6 +43,67 @@ pub struct ExerciseManifest {
     /// Workspace layout while this exercise is selected.
     #[serde(default)]
     pub layout: Layout,
+    /// For `kind = "review"`: the file with planted bugs the learner reviews
+    /// (copied next to the learner's `review.md`).
+    #[serde(default)]
+    pub review_file: Option<String>,
+}
+
+/// One planted bug in a `kind = "review"` exercise (`bugs.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct PlantedBug {
+    /// Short name shown in check results, e.g. "off-by-one".
+    pub name: String,
+    /// Inclusive line range `[first, last]` in the reviewed file.
+    pub lines: [u32; 2],
+    /// A review comment matches when it contains any of these (case-insensitive).
+    pub keywords: Vec<String>,
+    /// Feedback shown when the bug was missed.
+    #[serde(default)]
+    pub hint: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BugsManifest {
+    #[serde(rename = "bug")]
+    pub bugs: Vec<PlantedBug>,
+}
+
+/// Parse and validate `bugs.toml`.
+pub fn parse_bugs(s: &str) -> Result<BugsManifest> {
+    let m: BugsManifest = toml::from_str(s)?;
+    if m.bugs.is_empty() {
+        anyhow::bail!("bugs.toml must list at least one [[bug]]");
+    }
+    for b in &m.bugs {
+        if b.lines[0] == 0 || b.lines[0] > b.lines[1] {
+            anyhow::bail!("bug {:?}: invalid line range {:?}", b.name, b.lines);
+        }
+        if b.keywords.iter().all(|k| k.trim().is_empty()) {
+            anyhow::bail!("bug {:?}: needs at least one keyword", b.name);
+        }
+    }
+    Ok(m)
+}
+
+/// Parse a learner review: lines like `L12: comment` (also `L12-14:`).
+/// Returns (first line, last line, comment).
+pub fn parse_review(s: &str) -> Vec<(u32, u32, String)> {
+    s.lines()
+        .filter_map(|line| {
+            let line = line.trim().trim_start_matches(['-', '*']).trim();
+            let rest = line.strip_prefix('L').or_else(|| line.strip_prefix('l'))?;
+            let (range, comment) = rest.split_once(':')?;
+            let (a, b) = match range.split_once('-') {
+                Some((a, b)) => (a.trim().parse().ok()?, b.trim().parse().ok()?),
+                None => {
+                    let n = range.trim().parse().ok()?;
+                    (n, n)
+                }
+            };
+            Some((a, b, comment.trim().to_string()))
+        })
+        .collect()
 }
 
 /// How the workspace is arranged for an exercise.
@@ -116,6 +177,18 @@ impl Exercise {
     /// Path of the learner's file relative to the workspace root.
     pub fn user_file(&self) -> PathBuf {
         self.rel_dir.join(&self.manifest.file)
+    }
+
+    pub fn is_review(&self) -> bool {
+        self.manifest.kind == "review"
+    }
+
+    /// Path of the reviewed file relative to the workspace root (review exercises).
+    pub fn review_file(&self) -> Option<PathBuf> {
+        self.manifest
+            .review_file
+            .as_ref()
+            .map(|f| self.rel_dir.join(f))
     }
 }
 
@@ -231,6 +304,19 @@ pub fn load_track(root: &Path) -> Result<Track> {
                 continue;
             }
             let exercise_manifest: ExerciseManifest = read_toml(&exercise_toml)?;
+            if exercise_manifest.kind == "review" {
+                let bugs = exercise_dir.join("bugs.toml");
+                let s = std::fs::read_to_string(&bugs)
+                    .with_context(|| format!("reading {}", bugs.display()))?;
+                parse_bugs(&s).with_context(|| format!("parsing {}", bugs.display()))?;
+                let reviewed = exercise_manifest.review_file.as_deref().unwrap_or("");
+                if reviewed.is_empty() || !exercise_dir.join(reviewed).is_file() {
+                    anyhow::bail!(
+                        "{}: review exercises need an existing `review_file`",
+                        exercise_toml.display()
+                    );
+                }
+            }
             exercises.push(Exercise {
                 manifest: exercise_manifest,
                 rel_dir: PathBuf::from(&dir_name).join(file_name(&exercise_dir)?),
@@ -323,5 +409,26 @@ mod tests {
         std::fs::write(dir.path().join("track.toml"), "id = ").unwrap();
         let err = format!("{:#}", load_track(dir.path()).unwrap_err());
         assert!(err.contains("track.toml"), "{err}");
+    }
+
+    #[test]
+    fn parses_bugs_and_review() {
+        let m = parse_bugs(
+            "[[bug]]\nname = \"off-by-one\"\nlines = [3, 4]\nkeywords = [\"off-by-one\", \"range\"]\n",
+        )
+        .unwrap();
+        assert_eq!(m.bugs[0].lines, [3, 4]);
+        assert!(parse_bugs("[[bug]]\nname = \"x\"\nlines = [5, 2]\nkeywords = [\"a\"]\n").is_err());
+        assert!(parse_bugs("bug = []").is_err());
+        let r = parse_review(
+            "# Review\nL3: off-by-one in range\n- L10-12: missing await\nnot a comment\n",
+        );
+        assert_eq!(
+            r,
+            vec![
+                (3, 3, "off-by-one in range".into()),
+                (10, 12, "missing await".into())
+            ]
+        );
     }
 }

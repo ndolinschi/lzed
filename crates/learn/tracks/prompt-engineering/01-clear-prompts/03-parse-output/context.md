@@ -1,0 +1,1 @@
+In code, you fill the template's placeholders and then extract the tagged answer from Claude's reply with a regular expression. Asking for output in tags is a simple and robust way to get structured text.

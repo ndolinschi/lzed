@@ -1,0 +1,6 @@
+id = "subagent"
+title = "Define a Claude Code Subagent"
+xp = 100
+kind = "static"
+language = "markdown"
+file = "code-reviewer.md"
