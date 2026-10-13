@@ -144,7 +144,7 @@ impl TrackPicker {
                         el.child(div().pt_2().child(Label::new(manifest.description.clone())))
                     })
                     .when_some(manifest.skill.clone(), |el, skill| {
-                        let earned = summary.skill_earned_at.is_some();
+                        let earned = summary.skill_earned_at.is_some() || summary.percent == 100;
                         el.child(
                             h_flex()
                                 .pt_2()

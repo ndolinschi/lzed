@@ -367,22 +367,29 @@ impl LearnPanel {
         let save = self.save_user_file(cx);
         cx.spawn_in(window, async move |this, cx| {
             save.await.log_err();
-            this.update_in(cx, |this, window, cx| {
-                let prompt = agent_ui::ExternalSourcePrompt::new(&this.ai_prompt(&exercise));
-                this.workspace
-                    .update(cx, |workspace, cx| {
-                        let Some(panel) = workspace.panel::<agent_ui::AgentPanel>(cx) else {
-                            return;
-                        };
-                        workspace.focus_panel::<agent_ui::AgentPanel>(window, cx);
-                        panel.update(cx, |panel, cx| {
-                            panel.new_agent_thread_with_external_source_prompt(prompt, window, cx)
-                        });
-                    })
-                    .ok();
+            // LEARNZED: build the prompt first, then touch the workspace outside our own
+            // update so the dock can deactivate this panel without a double lease.
+            let Ok((prompt, workspace)) = this.update(cx, |this, cx| {
                 cx.notify();
-            })
-            .ok();
+                (this.ai_prompt(&exercise), this.workspace.clone())
+            }) else {
+                return;
+            };
+            let Some(workspace) = workspace.upgrade() else {
+                return;
+            };
+            workspace
+                .update_in(cx, |workspace, window, cx| {
+                    let Some(panel) = workspace.panel::<agent_ui::AgentPanel>(cx) else {
+                        return;
+                    };
+                    workspace.focus_panel::<agent_ui::AgentPanel>(window, cx);
+                    let prompt = agent_ui::ExternalSourcePrompt::new(&prompt);
+                    panel.update(cx, |panel, cx| {
+                        panel.new_agent_thread_with_external_source_prompt(prompt, window, cx)
+                    });
+                })
+                .ok();
         })
         .detach();
     }
@@ -883,7 +890,8 @@ impl Render for LearnPanel {
                             )
                             .child(ProgressBar::new("learn-progress", percent as f32, 100., cx))
                             .when_some(track.track.manifest.skill.clone(), |el, skill| {
-                                let earned = self.progress.skill_earned_at.is_some();
+                                let earned = self.progress.skill_earned_at.is_some()
+                                    || self.track.as_ref().map_or(false, |t| self.progress.percent(&t.track) == 100);
                                 el.child(
                                     h_flex()
                                         .gap_1()

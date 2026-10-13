@@ -22,3 +22,11 @@
 | M7-02 | Auto-trust bundled tracks (D9) | todo (proposed) |
 | M7-03 | gpui tests for learn_ui (picker/panel) | todo |
 | M7-04 | Update script/bundle-* for `learnzed` bin, desktop file, icons | todo |
+| M7-05 | Award/derive skills for already-completed tracks | done |
+
+## Approved by user (2026-10-13): AI skills for Zed's agent chat
+| id | title | milestone | owner | status | branch | notes |
+|----|-------|-----------|-------|--------|--------|-------|
+| AI-1 | Generate `.rules` (agent rules file) into each track workspace on materialize: tutor persona, no solution leaks, how to read .learn/progress.json, exercise layout, how to interpret check results | M8 | | todo | task/AI-1 | Zed auto-loads .rules into agent context |
+| AI-2 | Agent tools for learning (context server / MCP `learnzed` or built-in tools): get_current_exercise, run_check (returns runner JSON), get_hint(level), get_progress/skills | M8 | | todo | task/AI-2 | no tool returns solution.py |
+| AI-3 | Slash commands / prompt library entries in agent chat: /exercise, /check, /hint, /explain-error | M8 | | todo | task/AI-3 | |

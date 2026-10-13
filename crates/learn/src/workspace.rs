@@ -116,7 +116,11 @@ impl TrackWorkspace {
     }
 
     pub fn load_progress(&self) -> Progress {
-        Progress::load(&self.progress_path())
+        let mut progress = Progress::load(&self.progress_path());
+        if progress.award_skill_if_complete(&self.track) {
+            self.save_progress(&progress).ok();
+        }
+        progress
     }
 
     pub fn save_progress(&self, progress: &Progress) -> Result<()> {
@@ -194,7 +198,7 @@ mod tests {
         let lock = ws.lock().unwrap();
         assert_eq!(
             (lock.id.as_str(), lock.version.as_str()),
-            ("intro-to-python", "1.0.0")
+            ("intro-to-python", "1.1.0")
         );
 
         std::fs::write(&file, "print('mine')").unwrap();
@@ -215,3 +219,4 @@ mod tests {
         assert!(TrackWorkspace::materialize(&other, dir.path()).is_err());
     }
 }
+

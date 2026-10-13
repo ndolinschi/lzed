@@ -2,16 +2,17 @@
 Current milestone: MVP M0–M7 implemented on learn/main; stretch items open.
 
 State
-- `cargo test -p learn`: 13/13 pass (parsing, progress, materialization, registry, runner incl. real python+numpy, timeout).
+- `cargo test -p learn`: 16/16 pass (parsing, progress, materialization, registry, runner incl. real python+numpy, timeout, retroactive skills).
 - `cargo check`/`clippy -p learn -p learn_ui --tests`: clean. Dev build `cargo build -p zed` OK → target/debug/learnzed.
+- Retroactive skills bug resolved: already-completed tracks derive/award skills upon loading progress or installed tracks.
 - Manual E2E done on box (PLAN.md), screenshots in .orchestration/screenshots/.
 
 In-flight: none.
 
 Next 3 actions
-1. D9: auto-trust bundled track workspaces (avoid Restricted Mode prompt) — needs orchestrator OK.
-2. gpui tests for TrackPicker/LearnPanel (TestAppContext) — M7-03.
-3. Stretch: git-URL import (M3-03), REPL runner (M5-04), packaging (M7-04).
+1. M7-03: gpui UI tests for learn_ui (TrackPicker/LearnPanel using TestAppContext).
+2. M7-04: packaging scripts binary rename (script/bundle-*, desktop file, icons) for `learnzed` bin.
+3. M7-02: D9 auto-trust for bundled tracks.
 
 Known risks / notes
 - Bin renamed `learnzed` (Zed asserts bin name == APP_NAME); script/bundle-*, zed-local still reference `zed`.

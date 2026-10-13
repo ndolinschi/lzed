@@ -105,10 +105,18 @@ pub fn earned_skills(tracks: &[TrackSummary]) -> Vec<EarnedSkill> {
     let mut skills = tracks
         .iter()
         .filter_map(|t| {
+            let skill = t.track.manifest.skill.clone()?;
+            let earned_at = t.skill_earned_at.or_else(|| {
+                if t.percent == 100 {
+                    t.last_opened.or(Some(0))
+                } else {
+                    None
+                }
+            })?;
             Some(EarnedSkill {
-                skill: t.track.manifest.skill.clone()?,
+                skill,
                 track_title: t.track.manifest.title.clone(),
-                earned_at: t.skill_earned_at?,
+                earned_at,
             })
         })
         .collect::<Vec<_>>();
@@ -131,13 +139,23 @@ pub fn installed_tracks(home: &Path) -> Vec<TrackSummary> {
         })
         .map(|track| {
             let workspace_dir = home.join(track.id());
-            let progress =
-                Progress::load(&TrackWorkspace::learn_dir(&workspace_dir).join("progress.json"));
+            let progress_path = TrackWorkspace::learn_dir(&workspace_dir).join("progress.json");
+            let mut progress = Progress::load(&progress_path);
+            if progress.award_skill_if_complete(&track) {
+                progress.save(&progress_path).ok();
+            }
+            let skill_earned_at = progress.skill_earned_at.or_else(|| {
+                if progress.percent(&track) == 100 && track.manifest.skill.is_some() {
+                    progress.last_opened.or(Some(0))
+                } else {
+                    None
+                }
+            });
             TrackSummary {
                 percent: progress.percent(&track),
                 xp: progress.total_xp(),
                 last_opened: progress.last_opened,
-                skill_earned_at: progress.skill_earned_at,
+                skill_earned_at,
                 workspace_dir,
                 track,
             }
@@ -193,5 +211,35 @@ mod tests {
         let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("tracks/intro-to-python");
         let t = add_track_from_folder(home.path(), &src).unwrap();
         assert_eq!(t.root, tracks_dir(home.path()).join("intro-to-python"));
+    }
+
+    #[test]
+    fn retroactively_awards_skills_for_completed_tracks() {
+        let home = tempfile::tempdir().unwrap();
+        install_bundled_tracks(home.path()).unwrap();
+        let tracks = installed_tracks(home.path());
+        let s = tracks
+            .iter()
+            .find(|t| t.track.id() == "intro-to-python")
+            .unwrap();
+        let ws = TrackWorkspace::materialize(&s.track, &s.workspace_dir).unwrap();
+        let mut p = Progress::default();
+        for e in s.track.exercises() {
+            p.record_submission(e.id(), true, 10, 0);
+        }
+        // Simulate an older progress file where skill_earned_at was null despite 100% completion
+        p.skill_earned_at = None;
+        ws.save_progress(&p).unwrap();
+
+        let all = installed_tracks(home.path());
+        let s = all
+            .iter()
+            .find(|t| t.track.id() == "intro-to-python")
+            .unwrap();
+        assert_eq!(s.percent, 100);
+        assert!(s.skill_earned_at.is_some());
+        let skills = earned_skills(&all);
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].skill, "Python");
     }
 }
