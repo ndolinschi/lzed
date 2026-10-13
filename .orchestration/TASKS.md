@@ -19,7 +19,7 @@
 | M6-01 | Sample track (4 exercises incl. Subsetting 2D) | done |
 | M6-02 | E2E manual test (PLAN.md) + screenshots | done |
 | M7-01 | Hint (XP cost), Reset (confirm), Next (after pass) | done |
-| M7-02 | Auto-trust bundled tracks (D9) | todo (proposed) |
+| M7-02 | Auto-trust bundled tracks (D9) | done |
 | M7-03 | gpui tests for learn_ui (picker/panel) | done |
 | M7-04 | Update script/bundle-* for `learnzed` bin, desktop file, icons | done |
 | M7-05 | Award/derive skills for already-completed tracks | done |

@@ -7,7 +7,7 @@
 - D6 (accepted): the workspace is self-contained: track definition copied to `.learn/track/` (setup/solution/check, refreshed when track version changes), runner at `.learn/learn_runner.py`. Learner files are never overwritten except by Reset.
 - D7 (accepted): BRIEF's "Chapters → Lessons → Exercises": track format v1 has only chapters/exercises, so the tree is two-level. Lessons can be added as a v2 format change.
 - D8 (accepted): unlocking: an exercise is unlocked if first, already started, or previous passed. XP awarded once on first pass: `xp - hints_used * hint_xp_cost` (default 30, `hint_xp_cost` in exercise.toml).
-- D9 (proposed): Zed's Restricted Mode trust prompt appears when opening ~/LearnZed/<track>. Kept (security feature). Proposal: auto-trust bundled tracks only.
+- D9 (accepted): bundled tracks under LearnZed home (~/LearnZed/<id>) are auto-trusted on startup so learners are not blocked by the Restricted Mode security prompt. External/imported tracks remain subject to the trust prompt.
 - D10 (accepted): Learn panel activation priority 10 (must be unique); added after the other panels in `initialize_panels` with `starts_open = is_track`, so it is the active left-dock panel in track workspaces (Project Panel stays registered and toggleable).
 - D11 (accepted, A1): careers live in `crates/learn/careers/` and are extracted to `~/LearnZed/.careers/`; a career references tracks by id; career progress = mean of its tracks' percent; "Continue path" opens the first incomplete track.
 - D12 (accepted, A2): skill per track (`skill` in track.toml), awarded once when all exercises pass (`Progress::award_skill_if_complete`), stored in that track's progress.json; profile aggregates via `learn::earned_skills`.

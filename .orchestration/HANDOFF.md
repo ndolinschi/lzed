@@ -11,9 +11,9 @@ State
 In-flight: none.
 
 Next 3 actions
-1. M7-02: D9 auto-trust for bundled tracks.
-2. AI-1 / AI-2 / AI-3: Zed agent learning rules, learning MCP/tools, and slash commands.
-3. Dev build (cargo build -p zed) and UI screenshots via scrot.
+1. AI-1: Generate `.rules` (agent rules file) into each track workspace on materialize.
+2. AI-2: Agent tools for learning (context server / MCP `learnzed` or built-in tools).
+3. AI-3: Slash commands / prompt library entries in agent chat (/exercise, /check, /hint, /explain-error).
 
 
 Known risks / notes
