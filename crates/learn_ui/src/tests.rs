@@ -134,3 +134,18 @@ fn test_learn_panel_exercise_selection_hints_and_reset(cx: &mut TestAppContext) 
         });
     });
 }
+
+#[test]
+fn test_pluralization_formatting() {
+    use crate::track_picker::format_count;
+    assert_eq!(format_count(1, "chapter", "chapters"), "1 chapter");
+    assert_eq!(format_count(2, "chapter", "chapters"), "2 chapters");
+    assert_eq!(format_count(1, "exercise", "exercises"), "1 exercise");
+    assert_eq!(format_count(5, "exercise", "exercises"), "5 exercises");
+    assert_eq!(format_count(1, "skill", "skills"), "1 skill");
+    assert_eq!(format_count(0, "skill", "skills"), "0 skills");
+    assert_eq!(format_count(3, "skill", "skills"), "3 skills");
+    assert_eq!(format_count(1, "track", "tracks"), "1 track");
+    assert_eq!(format_count(4, "track", "tracks"), "4 tracks");
+}
+

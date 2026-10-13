@@ -1,3 +1,5 @@
+> [!IMPORTANT]
+> Remove this line to confirm you've reviewed this PR before submitting.
 <p align="center">
   <img src="assets/images/learnzed_logo.png" alt="LearnZed logo" width="160">
 </p>

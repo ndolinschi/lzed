@@ -977,7 +977,10 @@ impl Render for LearnPanel {
                                 )
                             })
                             .child(
-                                Label::new(format!("{done} of {total} exercises · {percent}%"))
+                                Label::new(format!(
+                                    "{done} of {} · {percent}%",
+                                    crate::track_picker::format_count(total, "exercise", "exercises")
+                                ))
                                     .size(LabelSize::XSmall)
                                     .color(Color::Muted),
                             ),

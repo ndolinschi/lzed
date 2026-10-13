@@ -136,8 +136,10 @@ impl TrackPicker {
             (Some(_), _) => ("Continue", true),
             (None, _) => ("Start track", false),
         };
+        let chapter_label = format_count(chapters, "chapter", "chapters");
+        let exercise_label = format_count(total, "exercise", "exercises");
         let mut meta = format!(
-            "{chapters} chapters · {total} exercises · {}",
+            "{chapter_label} · {exercise_label} · {}",
             manifest.language
         );
         if let Some(ts) = summary.last_opened {
@@ -223,8 +225,9 @@ impl TrackPicker {
                             .justify_between()
                             .child(
                                 Label::new(if started {
+                                    let exercise_label = format_count(total, "exercise", "exercises");
                                     format!(
-                                        "{done} of {total} exercises complete · {} XP",
+                                        "{done} of {exercise_label} complete · {} XP",
                                         summary.xp
                                     )
                                 } else {
@@ -286,8 +289,8 @@ impl TrackPicker {
                             .color(Color::Muted),
                     )
                     .child(Label::new(format!(
-                        "{total_xp} XP · {} skills",
-                        skills.len()
+                        "{total_xp} XP · {}",
+                        format_count(skills.len(), "skill", "skills")
                     ))),
             )
             .child(div().flex_1())
@@ -387,8 +390,8 @@ impl TrackPicker {
                     )
                     .child(
                         Label::new(format!(
-                            "Career path · {} tracks · {percent}% complete",
-                            steps.len()
+                            "Career path · {} · {percent}% complete",
+                            format_count(steps.len(), "track", "tracks")
                         ))
                         .size(LabelSize::Small)
                         .color(Color::Muted),
@@ -485,6 +488,14 @@ fn format_ago(secs: u64) -> String {
         60..3600 => format!("{} min ago", secs / 60),
         3600..86400 => format!("{} h ago", secs / 3600),
         _ => format!("{} days ago", secs / 86400),
+    }
+}
+
+pub(crate) fn format_count(count: usize, singular: &str, plural: &str) -> String {
+    if count == 1 {
+        format!("{count} {singular}")
+    } else {
+        format!("{count} {plural}")
     }
 }
 
